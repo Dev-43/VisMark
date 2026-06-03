@@ -1,16 +1,16 @@
-require('dotenv').config();
-const express =require('express');
-const app = express();
+import express from 'express'
+import dotenv from 'dotenv'
 
-// Middleware to parse JSON bodies
-app.use(express.json());
+dotenv.config()
 
-//A simple test route to confirm the server works
-app.get('/',(req,res)=>{
-    res.json({message: 'Vismark backend is running!'});
-});
+const app = express()
+app.use(express.json())
 
-const PORT =process.env.port;
-app.listen(PORT,()=>{
-    console.log('Backend running on port ${PORT}');
-});
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' })
+})
+
+const PORT = process.env.PORT || 4000
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`)
+})
