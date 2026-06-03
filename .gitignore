@@ -7,9 +7,14 @@
 
 # testing
 /coverage
+node_modules/
+.env
+.env.local
+
 
 # next.js
 /.next/
+dist/
 /out/
 
 # production
@@ -34,3 +39,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+Store/
