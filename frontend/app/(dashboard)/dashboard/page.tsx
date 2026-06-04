@@ -15,10 +15,19 @@ export default function DashboardPage() {
     getUser()
   }, [])
 
+  useEffect(() => {
+  const getToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    console.log('TOKEN:', session?.access_token)
+  }
+  getToken()
+  }, [])
+
   async function handleLogout() {
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
+
 
   return (
     <div style={{ padding: '40px' }}>
