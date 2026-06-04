@@ -1,10 +1,16 @@
 import dotenv from 'dotenv'
-import express from 'express'
-import folderRoutes from './routes/folders.js'
-
 dotenv.config()
 
+import express from 'express'
+import cors from 'cors'
+import folderRoutes from './routes/folders.js'
+
 const app = express()
+
+app.use(cors({
+  origin: 'http://localhost:3000'
+}))
+
 app.use(express.json())
 
 app.get('/health', (req, res) => {
