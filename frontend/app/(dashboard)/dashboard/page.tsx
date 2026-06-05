@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import Link from 'next/link'
 
 type Folder = {
   id: string
@@ -142,7 +143,9 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
-              <span>{folder.name}</span>
+              <Link href={`/dashboard/folder/${folder.id}`} style={{ textDecoration: 'none', color: 'inherit', fontWeight: 500 }}>
+                {folder.name}
+              </Link>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => {
                   setRenamingId(folder.id)
