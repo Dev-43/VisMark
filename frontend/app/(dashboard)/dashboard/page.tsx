@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
+import SearchBar from '@/components/SearchBar'
+
 
 type Folder = {
   id: string
@@ -18,16 +20,24 @@ export default function DashboardPage() {
   const [renameValue, setRenameValue] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL
 
-  // Helper: get token for every backend request
-  async function getToken() {
+  const getToken = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
+    console.log('Current session:', session?.access_token)
     return session?.access_token
-  }
+  }, [supabase])
 
-  // Fetch user + folders on load
+  const fetchFolders = useCallback(async () => {
+    const token = await getToken()
+    const res = await fetch(`${BACKEND}/api/folders`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const data = await res.json()
+    setFolders(data)
+  }, [BACKEND, getToken])
+
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -35,16 +45,7 @@ export default function DashboardPage() {
       await fetchFolders()
     }
     init()
-  }, [])
-
-  async function fetchFolders() {
-    const token = await getToken()
-    const res = await fetch(`${BACKEND}/api/folders`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    const data = await res.json()
-    setFolders(data)
-  }
+  }, [fetchFolders, supabase])
 
   async function handleCreate() {
     if (!newFolderName.trim()) return
@@ -93,14 +94,19 @@ export default function DashboardPage() {
     window.location.href = '/login'
   }
 
+
   return (
     <div style={{ padding: '40px', maxWidth: '600px' }}>
       <h1>Dashboard</h1>
       <p>Logged in as: {email}</p>
       <button onClick={handleLogout}>Log out</button>
 
+      {/* Search — add this */}
+      <div style={{ margin: '24px 0' }}>
+        <SearchBar />
+      </div>
       <hr style={{ margin: '24px 0' }} />
-
+      <button onClick={getToken}>Log Token</button>
       {/* Create Folder */}
       <h2>Folders</h2>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>

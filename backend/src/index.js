@@ -4,8 +4,11 @@ dotenv.config()
 import express from 'express'
 import cors from 'cors'
 import folderRoutes from './routes/folders.js'
-import linksRouter from './routes/links.js'        
-import authMiddleware from './middleware/auth.js'   
+import linksRouter from './routes/links.js'
+import authMiddleware from './middleware/auth.js'
+import snapshotRoute from './routes/snapshot.js'
+import searchRouter from './routes/search.js'   // ← added here with the others
+import './services/worker.js'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -19,6 +22,8 @@ app.get('/health', (req, res) => {
 
 app.use('/api/folders', folderRoutes)
 app.use('/api/links', authMiddleware, linksRouter)
+app.use('/api/snapshot', authMiddleware, snapshotRoute)
+app.use('/api/search', authMiddleware, searchRouter)   // ← added here with the others
 
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`)
