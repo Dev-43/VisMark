@@ -3,6 +3,17 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { apiFetch } from '@/lib/apiFetch'
+import TagPicker from '@/components/TagPicker'
+
+type Tag = {
+  id: string
+  name: string
+}
+
+type LinkTag = {
+  tag_id: string
+  tags: Tag
+}
 
 type Link = {
   id: string
@@ -13,6 +24,7 @@ type Link = {
   favicon_url: string | null
   snapshot_status: string
   created_at: string
+  link_tags: LinkTag[]
 }
 
 export default function FolderPage() {
@@ -104,7 +116,7 @@ function LinkCard({ link }: { link: Link }) {
     catch { return link.url }
   })()
 
-  // Pending state — show animated skeleton
+  // Pending state — show animated skeleton (no tags yet)
   if (link.snapshot_status === 'pending') {
     return (
       <div className="border rounded-lg overflow-hidden">
@@ -131,6 +143,7 @@ function LinkCard({ link }: { link: Link }) {
         <div className="p-3">
           <p className="text-sm font-medium truncate">{link.title || domain}</p>
           <p className="text-xs text-gray-400 truncate">{domain}</p>
+          <TagPicker linkId={link.id} initialLinkTags={link.link_tags ?? []} />
         </div>
       </a>
     )
@@ -151,6 +164,7 @@ function LinkCard({ link }: { link: Link }) {
       <div className="p-3">
         <p className="text-sm font-medium truncate">{link.title || domain}</p>
         <p className="text-xs text-gray-400 truncate">{domain}</p>
+        <TagPicker linkId={link.id} initialLinkTags={link.link_tags ?? []} />
       </div>
     </a>
   )

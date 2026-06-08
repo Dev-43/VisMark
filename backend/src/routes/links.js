@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
 
   const { data, error } = await getSupabase()
     .from('links')
-    .select('*')
+    .select('*, link_tags (tag_id,tags ( id, name ) )')
     .eq('folder_id', folder_id)
     .eq('user_id', user_id)        // safety: only your own links
     .order('created_at', { ascending: false })
