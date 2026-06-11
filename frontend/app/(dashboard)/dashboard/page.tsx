@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import SearchBar from '@/components/SearchBar'
+import TagManager from '@/components/TagManager'
 
 
 type Folder = {
@@ -105,6 +106,10 @@ export default function DashboardPage() {
       <div style={{ margin: '24px 0' }}>
         <SearchBar />
       </div>
+      <div style={{ margin: '24px 0' }}>
+        <TagManager />
+      </div>
+      <hr style={{ margin: '24px 0' }} />
       <hr style={{ margin: '24px 0' }} />
       <button onClick={getToken}>Log Token</button>
       {/* Create Folder */}

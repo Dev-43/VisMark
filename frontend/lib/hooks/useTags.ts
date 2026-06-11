@@ -1,62 +1,42 @@
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase'
-
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL
-
-async function getAuthHeader() {
-  const supabase = createClient()
-  const { data } = await supabase.auth.getSession()
-  const token = data.session?.access_token
-  return { Authorization: `Bearer ${token}` }
-}
+import { useState, useEffect, useCallback } from 'react'
+import { apiFetch } from '@/lib/apiFetch'
 
 export function useTags() {
   const [tags, setTags] = useState<any[]>([])
 
-  useEffect(() => {
-    fetchTags()
-  }, [])
-
-  async function fetchTags() {
-    const headers = await getAuthHeader()
-    const res = await fetch(`${BACKEND}/api/tags`, { headers })
+  const fetchTags = useCallback(async () => {
+    const res = await apiFetch('/api/tags')
     const data = await res.json()
     setTags(data)
-  }
+  }, []) // empty array = only created once, never recreated
+
+  useEffect(() => {
+    fetchTags()
+  }, [fetchTags]) // now stable, won't loop
 
   async function createTag(name: string) {
-    const headers = await getAuthHeader()
-    const res = await fetch(`${BACKEND}/api/tags`, {
+    const res= await apiFetch('/api/tags', {
       method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     })
-    if (res.ok) fetchTags() // refresh the list
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error)
+    }
+    fetchTags()
   }
 
   async function deleteTag(tagId: string) {
-    const headers = await getAuthHeader()
-    await fetch(`${BACKEND}/api/tags/${tagId}`, {
-      method: 'DELETE',
-      headers,
-    })
+    await apiFetch(`/api/tags/${tagId}`, { method: 'DELETE' })
     fetchTags()
   }
 
   async function attachTag(tagId: string, linkId: string) {
-    const headers = await getAuthHeader()
-    await fetch(`${BACKEND}/api/tags/${tagId}/links/${linkId}`, {
-      method: 'POST',
-      headers,
-    })
+    await apiFetch(`/api/tags/${tagId}/links/${linkId}`, { method: 'POST' })
   }
 
   async function removeTag(tagId: string, linkId: string) {
-    const headers = await getAuthHeader()
-    await fetch(`${BACKEND}/api/tags/${tagId}/links/${linkId}`, {
-      method: 'DELETE',
-      headers,
-    })
+    await apiFetch(`/api/tags/${tagId}/links/${linkId}`, { method: 'DELETE' })
   }
 
   return { tags, createTag, deleteTag, attachTag, removeTag }

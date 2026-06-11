@@ -1,18 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useTags } from '@/lib/hooks/useTags'
-
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL
+import { useState } from 'react'
 
 interface Props {
   linkId: string
-  // tags already on this link, passed in from the parent
   initialLinkTags: { tag_id: string }[]
+  tags: any[]
+  attachTag: (tagId: string, linkId: string) => Promise<void>
+  removeTag: (tagId: string, linkId: string) => Promise<void>
 }
 
-export default function TagPicker({ linkId, initialLinkTags }: Props) {
-  const { tags, attachTag, removeTag } = useTags()
+export default function TagPicker({ linkId, initialLinkTags, tags, attachTag, removeTag }: Props) {
   const [activeTags, setActiveTags] = useState<Set<string>>(
     new Set(initialLinkTags.map(t => t.tag_id))
   )
@@ -29,12 +27,15 @@ export default function TagPicker({ linkId, initialLinkTags }: Props) {
   }
 
   return (
-    <div className="relative"
+    <div
+      className="relative"
       onClick={e => e.stopPropagation()}
     >
       <button
-        onClick={(e) => {e.preventDefault() 
-            setOpen(o => !o)}}
+        onClick={(e) => {
+          e.preventDefault()
+          setOpen(o => !o)
+        }}
         className="text-xs text-gray-400 hover:text-gray-600"
       >
         🏷 Tags
