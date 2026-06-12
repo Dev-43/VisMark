@@ -35,10 +35,13 @@ export default function FolderPage() {
   const [loading, setLoading] = useState(false)
   const pollRef = useRef<NodeJS.Timeout | null>(null)
   const { tags, attachTag, removeTag } = useTags() // ← fetched ONCE here
+  const [isPublic, setIsPublic] = useState(false)
+  const [publicSlug, setPublicSlug] = useState<string | null>(null)
+  const [shareLoading, setShareLoading] = useState(false)
 
   const fetchLinks = useCallback(async () => {
-    const res = await apiFetch(`/api/links?folder_id=${folderId}`)
-    const data = await res.json()
+  const res = await apiFetch(`/api/links?folder_id=${folderId}`)
+  const data = await res.json()
     setLinks(data)
   }, [folderId])
 
@@ -55,6 +58,16 @@ export default function FolderPage() {
       if (pollRef.current) clearTimeout(pollRef.current)
     }
   }, [links, fetchLinks])
+  const fetchFolder = useCallback(async () => {
+  const res = await apiFetch(`/api/folders/${folderId}`)
+  const data = await res.json()
+  setIsPublic(data.is_public)
+  setPublicSlug(data.public_slug)
+  }, [folderId])
+
+  useEffect(() => {
+    fetchFolder()
+  }, [fetchFolder])
 
   async function handleSave() {
     if (!url.trim()) return
@@ -73,9 +86,40 @@ export default function FolderPage() {
     }).catch(err => console.error('Snapshot trigger failed:', err))
   }
 
+  async function handleShareToggle() {
+    setShareLoading(true)
+    const res = await apiFetch(`/api/folders/${folderId}/share`, {
+      method: 'PATCH',
+      body: JSON.stringify({ enable: !isPublic }),
+    })
+    const data = await res.json()
+    setIsPublic(data.is_public)
+    setPublicSlug(data.public_slug)
+
+    if (data.public_slug) {
+      const shareUrl = `${window.location.origin}/share/${data.public_slug}`
+      await navigator.clipboard.writeText(shareUrl)
+      alert('Share link copied to clipboard!')  // replace with a toast later
+    }
+
+    setShareLoading(false)
+  }
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Folder</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Folder</h1>
+        <button
+          onClick={handleShareToggle}
+          disabled={shareLoading}
+          className={`px-4 py-2 rounded text-sm font-medium disabled:opacity-50 transition-colors ${
+            isPublic
+              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          {shareLoading ? 'Updating...' : isPublic ? '🔗 Shared' : 'Share'}
+        </button>
+      </div>
 
       <div className="flex gap-2 mb-8">
         <input

@@ -21,6 +21,23 @@ router.get('/', requireAuth, async (req, res) => {
   res.json(data)
 })
 
+router.get('/:id', requireAuth, async (req, res) => {
+  const supabase = getSupabase()
+  const { id } = req.params
+  const userId = req.user.id
+
+  const { data, error } = await supabase
+    .from('folders')
+    .select('id, name, is_public, public_slug')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .single()
+
+  if (error || !data) return res.status(404).json({ error: 'Folder not found' })
+
+  res.json(data)
+})
+
 router.post('/', requireAuth, async (req, res) => {
   const supabase = getSupabase()
   const { name } = req.body           // folder name from frontend
