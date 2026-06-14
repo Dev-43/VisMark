@@ -2,6 +2,7 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 import { Worker } from 'bullmq'
+import Redis from 'ioredis'
 import { createClient } from '@supabase/supabase-js'
 import { takeScreenshot } from './puppeteer.js'
 import { scrapeOGData } from './ogScraper.js'
