@@ -11,10 +11,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const connection = {
-  host: process.env.REDIS_URL || 'localhost',
-  port: 6379,
-}
+const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null, // required by BullMQ
+})
 
 async function updateLink(linkId, data) {
   const { error } = await supabase.from('links').update(data).eq('id', linkId)
