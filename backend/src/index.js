@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 4000
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://vis-mark-two.vercel.app/" // update once you have your real Vercel URL
+  "https://vis-mark-two.vercel.app" // update once you have your real Vercel URL
 ]
 
 app.use(cors({
