@@ -41,7 +41,8 @@ router.get('/', async (req, res) => {
     snapshot_status,
     folder_id,
     created_at,
-    folders ( name )
+    folders ( name ),
+    link_tags (tag_id,tags ( id, name ) )
     `)
     .eq('user_id', userId)
     .or(`fts.phfts(english).${sanitized},url.ilike.%${sanitized}%`);

@@ -17,10 +17,18 @@ export function useTags() {
 
   useEffect(() => {
     fetchTags()
-  }, [fetchTags]) // now stable, won't loop
+
+    const handleTagsUpdated = () => {
+      fetchTags()
+    }
+    window.addEventListener('tags-updated', handleTagsUpdated)
+    return () => {
+      window.removeEventListener('tags-updated', handleTagsUpdated)
+    }
+  }, [fetchTags])
 
   async function createTag(name: string) {
-    const res= await apiFetch('/api/tags', {
+    const res = await apiFetch('/api/tags', {
       method: 'POST',
       body: JSON.stringify({ name }),
     })
@@ -28,12 +36,12 @@ export function useTags() {
       const err = await res.json()
       throw new Error(err.error)
     }
-    fetchTags()
+    window.dispatchEvent(new CustomEvent('tags-updated'))
   }
 
   async function deleteTag(tagId: string) {
     await apiFetch(`/api/tags/${tagId}`, { method: 'DELETE' })
-    fetchTags()
+    window.dispatchEvent(new CustomEvent('tags-updated'))
   }
 
   async function attachTag(tagId: string, linkId: string) {

@@ -100,7 +100,7 @@ router.get('/:tagId/links', async (req, res) => {
   const { data, error } = await getSupabase().from('links')
     .select(`
       *,
-      link_tags!inner(tag_id)
+      link_tags!inner(tag_id, tags(id, name))
     `)
     .eq('user_id', userId)
     .eq('link_tags.tag_id', tagId);

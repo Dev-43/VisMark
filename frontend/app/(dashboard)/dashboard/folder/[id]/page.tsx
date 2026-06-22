@@ -1,233 +1,699 @@
-'use client'
-/* eslint-disable @next/next/no-img-element */
+'use client';
 
-import { useCallback, useEffect, useState, useRef } from 'react'
-import { useParams } from 'next/navigation'
-import { apiFetch } from '@/lib/apiFetch'
-import TagPicker from '@/components/TagPicker'
-import { useTags } from '@/lib/hooks/useTags'
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams } from 'next/navigation';
+import { ArrowUp, CheckCircle, AlertCircle } from 'lucide-react';
+import { apiFetch } from '@/lib/apiFetch';
+import LinkCard from '@/components/LinkCard';
+import SkeletonCard from '@/components/SkeletonCard';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { useTags } from '@/lib/hooks/useTags';
 
-type Tag = {
-  id: string
-  name: string
+interface Tag {
+  id: string;
+  name: string;
 }
 
-type LinkTag = {
-  tag_id: string
-  tags: Tag
+interface RawLink {
+  id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  screenshot_url: string | null;
+  favicon_url: string | null;
+  snapshot_status: 'pending' | 'done' | 'failed';
+  link_tags?: { tag_id: string; tags: Tag }[];
+  created_at: string;
 }
 
-type Link = {
-  id: string
-  url: string
-  title: string | null
-  description: string | null
-  screenshot_url: string | null
-  favicon_url: string | null
-  snapshot_status: string
-  created_at: string
-  link_tags: LinkTag[]
+interface FolderData {
+  id: string;
+  name: string;
+  is_public: boolean;
+  public_slug: string | null;
 }
+
+interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error';
+}
+
+type SortOption = 'newest' | 'oldest' | 'alpha';
 
 export default function FolderPage() {
-  const { id: folderId } = useParams()
-  const [links, setLinks] = useState<Link[]>([])
-  const [url, setUrl] = useState('')
-  const [loading, setLoading] = useState(false)
-  const pollRef = useRef<NodeJS.Timeout | null>(null)
-  const { tags, attachTag, removeTag } = useTags() // ← fetched ONCE here
-  const [isPublic, setIsPublic] = useState(false)
-  const [shareLoading, setShareLoading] = useState(false)
+  const params = useParams();
+  const id = params?.id as string;
 
-  const fetchLinks = useCallback(async () => {
-  const res = await apiFetch(`/api/links?folder_id=${folderId}`)
-  const data = await res.json()
-    setLinks(data)
-  }, [folderId])
+  const [folder, setFolder] = useState<FolderData | null>(null);
+  const [links, setLinks] = useState<RawLink[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newUrl, setNewUrl] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const { tags: allTags, attachTag, removeTag } = useTags();
+
+  const handleAttachTag = async (tagId: string, linkId: string) => {
+    try {
+      await attachTag(tagId, linkId);
+      const tagObj = allTags.find((t) => t.id === tagId);
+      if (!tagObj) return;
+
+      setLinks((prev) =>
+        prev.map((link) => {
+          if (link.id !== linkId) return link;
+          const currentTags = link.link_tags || [];
+          if (currentTags.some((lt) => lt.tag_id === tagId)) return link;
+          return {
+            ...link,
+            link_tags: [...currentTags, { tag_id: tagId, tags: tagObj }],
+          };
+        })
+      );
+    } catch (err) {
+      console.error('Failed to attach tag:', err);
+      showToast('Failed to assign tag', 'error');
+    }
+  };
+
+  const handleRemoveTag = async (tagId: string, linkId: string) => {
+    try {
+      await removeTag(tagId, linkId);
+      setLinks((prev) =>
+        prev.map((link) => {
+          if (link.id !== linkId) return link;
+          const currentTags = link.link_tags || [];
+          return {
+            ...link,
+            link_tags: currentTags.filter((lt) => lt.tag_id !== tagId),
+          };
+        })
+      );
+    } catch (err) {
+      console.error('Failed to remove tag:', err);
+      showToast('Failed to remove tag', 'error');
+    }
+  };
+
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    const toastId = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id: toastId, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== toastId));
+    }, 3000);
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    if (!id) return;
+    try {
+      const [folderRes, linksRes] = await Promise.all([
+        apiFetch(`/api/folders/${id}`),
+        apiFetch(`/api/links?folder_id=${id}`),
+      ]);
+
+      if (!folderRes.ok) {
+        throw new Error('Folder not found');
+      }
+      const folderData = await folderRes.json();
+      setFolder(folderData);
+
+      if (linksRes.ok) {
+        const linksData = await linksRes.json();
+        setLinks(linksData);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(err instanceof Error ? err.message : 'Failed to load folder', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, showToast]);
 
   useEffect(() => {
-    fetchLinks()
-  }, [fetchLinks])
+    fetchData();
+  }, [fetchData]);
 
+  // Poll for pending snapshots every 3 seconds
   useEffect(() => {
-    const hasPending = links.some(l => l.snapshot_status === 'pending')
-    if (hasPending) {
-      pollRef.current = setTimeout(fetchLinks, 3000)
+    if (!id) return;
+    const hasPending = links.some((l) => l.snapshot_status === 'pending');
+    if (!hasPending) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const res = await apiFetch(`/api/links?folder_id=${id}`);
+        if (!res.ok) return;
+
+        const data: RawLink[] = await res.json();
+        
+        // Merge pending local-only links (which start with 'temp-') if they haven't been resolved yet
+        setLinks((currentLinks) => {
+          const tempLinks = currentLinks.filter((l) => l.id.startsWith('temp-'));
+          if (tempLinks.length > 0) {
+            const resolvedUrls = new Set(data.map((l) => l.url));
+            const remainingTemp = tempLinks.filter((tl) => !resolvedUrls.has(tl.url));
+            return [...remainingTemp, ...data];
+          }
+          return data;
+        });
+      } catch (err) {
+        console.error('Failed to poll links:', err);
+      }
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [links, id]);
+
+  const handleToggleShare = async () => {
+    if (!folder) return;
+    const newPublicState = !folder.is_public;
+
+    try {
+      const res = await apiFetch(`/api/folders/${folder.id}/share`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enable: newPublicState }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update sharing settings');
+      }
+
+      const data = await res.json();
+      setFolder((prev) =>
+        prev
+          ? {
+              ...prev,
+              is_public: data.is_public,
+              public_slug: data.public_slug,
+            }
+          : null
+      );
+
+      if (data.is_public && data.share_url) {
+        const fullUrl = window.location.origin + data.share_url;
+        await navigator.clipboard.writeText(fullUrl);
+        showToast('Shared successfully! Public link copied to clipboard', 'success');
+      } else {
+        showToast('Folder is now private', 'success');
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to update sharing', 'error');
     }
-    return () => {
-      if (pollRef.current) clearTimeout(pollRef.current)
-    }
-  }, [links, fetchLinks])
-  const fetchFolder = useCallback(async () => {
-  const res = await apiFetch(`/api/folders/${folderId}`)
-  const data = await res.json()
-  setIsPublic(data.is_public)
-  }, [folderId])
+  };
 
-  useEffect(() => {
-    fetchFolder()
-  }, [fetchFolder])
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const urlToSave = newUrl.trim();
+    if (!urlToSave) return;
 
-  async function handleSave() {
-    if (!url.trim()) return
-    setLoading(true)
-    const res = await apiFetch('/api/links', {
-      method: 'POST',
-      body: JSON.stringify({ folder_id: folderId, url }),
-    })
-    const newLink = await res.json()
-    setLinks(prev => [newLink, ...prev])
-    setUrl('')
-    setLoading(false)
-    apiFetch('/api/snapshot', {
-      method: 'POST',
-      body: JSON.stringify({ linkId: newLink.id, url: newLink.url }),
-    }).catch(err => console.error('Snapshot trigger failed:', err))
-  }
-
-  async function handleShareToggle() {
-    setShareLoading(true)
-    const res = await apiFetch(`/api/folders/${folderId}/share`, {
-      method: 'PATCH',
-      body: JSON.stringify({ enable: !isPublic }),
-    })
-    const data = await res.json()
-    setIsPublic(data.is_public)
-
-    if (data.public_slug) {
-      const shareUrl = `${window.location.origin}/share/${data.public_slug}`
-      await navigator.clipboard.writeText(shareUrl)
-      alert('Share link copied to clipboard!')  // replace with a toast later
+    try {
+      new URL(urlToSave);
+    } catch {
+      showToast('Please enter a valid URL', 'error');
+      return;
     }
 
-    setShareLoading(false)
-  }
+    setNewUrl('');
+
+    // Immediately add pending card
+    const tempId = `temp-${Date.now()}`;
+    const tempLink: RawLink = {
+      id: tempId,
+      url: urlToSave,
+      title: 'Saving link...',
+      description: 'Fetching screenshot and metadata...',
+      screenshot_url: null,
+      favicon_url: null,
+      snapshot_status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+    setLinks((prev) => [tempLink, ...prev]);
+
+    try {
+      const res = await apiFetch('/api/links', {
+        method: 'POST',
+        body: JSON.stringify({ url: urlToSave, folder_id: id }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to save link');
+      }
+
+      const newLink: RawLink = await res.json();
+
+      // Update local state with the real link info
+      setLinks((prev) => prev.map((l) => (l.id === tempId ? newLink : l)));
+      showToast('Link saved', 'success');
+      window.dispatchEvent(new CustomEvent('folders-updated'));
+
+      // Trigger screenshot snapshot
+      try {
+        await apiFetch('/api/snapshot', {
+          method: 'POST',
+          body: JSON.stringify({ linkId: newLink.id, url: urlToSave }),
+        });
+      } catch (snapshotErr) {
+        console.error('Failed to trigger snapshot:', snapshotErr);
+      }
+    } catch (err) {
+      setLinks((prev) => prev.filter((l) => l.id !== tempId));
+      showToast(err instanceof Error ? err.message : 'Failed to save link', 'error');
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return;
+
+    try {
+      const res = await apiFetch(`/api/links/${deleteTargetId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to delete link');
+      }
+
+      setLinks((prev) => prev.filter((l) => l.id !== deleteTargetId));
+      showToast('Link deleted successfully', 'success');
+      window.dispatchEvent(new CustomEvent('folders-updated'));
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to delete link', 'error');
+    } finally {
+      setDeleteTargetId(null);
+    }
+  };
+
+  const sortedLinks = useMemo(() => {
+    return [...links].sort((a, b) => {
+      if (sortBy === 'newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (sortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      if (sortBy === 'alpha') {
+        const titleA = (a.title || a.url || '').toLowerCase();
+        const titleB = (b.title || b.url || '').toLowerCase();
+        return titleA.localeCompare(titleB);
+      }
+      return 0;
+    });
+  }, [links, sortBy]);
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Folder</h1>
-        <button
-          onClick={handleShareToggle}
-          disabled={shareLoading}
-          className={`px-4 py-2 rounded text-sm font-medium disabled:opacity-50 transition-colors ${
-            isPublic
-              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes bounce {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-8px);
+          }
+        }
+        
+        .links-grid {
+          display: grid;
+          gap: var(--space-6);
+          grid-template-columns: repeat(1, minmax(0, 1fr));
+        }
+
+        @media (min-width: 640px) {
+          .links-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .links-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        .toast-item {
+          animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+      `}} />
+
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {/* HEADER SECTION */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px',
+            marginBottom: '24px',
+          }}
         >
-          {shareLoading ? 'Updating...' : isPublic ? '🔗 Shared' : 'Share'}
-        </button>
+          <div>
+            <h1
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '28px',
+                fontWeight: 600,
+                color: 'var(--text)',
+                margin: 0,
+              }}
+            >
+              {folder?.name || (loading ? 'Loading folder...' : 'Folder')}
+            </h1>
+            <span
+              style={{
+                fontSize: '14px',
+                color: 'var(--text-muted)',
+                marginTop: '4px',
+                display: 'block',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              {links.length} {links.length === 1 ? 'link' : 'links'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Share Button / Badge */}
+            {folder?.is_public ? (
+              <button
+                onClick={handleToggleShare}
+                style={{
+                  backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                  color: 'var(--success)',
+                  border: '1px solid rgba(22, 163, 74, 0.2)',
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>Shared ✓</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleToggleShare}
+                disabled={loading || !folder}
+                style={{
+                  backgroundColor: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: folder ? 'pointer' : 'not-allowed',
+                  opacity: folder ? 1 : 0.6,
+                }}
+                onMouseEnter={(e) => {
+                  if (folder) e.currentTarget.style.background = 'var(--border)';
+                }}
+                onMouseLeave={(e) => {
+                  if (folder) e.currentTarget.style.background = 'var(--surface-2)';
+                }}
+              >
+                Share
+              </button>
+            )}
+
+            {/* Sort Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                style={{
+                  appearance: 'none',
+                  backgroundColor: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  padding: '6px 32px 6px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: 'var(--text)',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="alpha">A-Z</option>
+              </select>
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '9px',
+                }}
+              >
+                ▼
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* URL INPUT BAR */}
+        <div
+          style={{
+            position: 'sticky',
+            top: '-24px',
+            zIndex: 15,
+            backgroundColor: 'var(--bg)',
+            paddingTop: '24px',
+            paddingBottom: '16px',
+            marginBottom: '24px',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <form
+            onSubmit={handleSave}
+            style={{
+              display: 'flex',
+              gap: '12px',
+              width: '100%',
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Paste a URL to save it..."
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              disabled={loading || !folder}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                fontSize: '14px',
+                color: 'var(--text)',
+                backgroundColor: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                outline: 'none',
+                fontFamily: 'var(--font-body)',
+                boxShadow: 'var(--shadow-card)',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent)';
+                e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent-subtle)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-card)';
+              }}
+            />
+            <button
+              type="submit"
+              disabled={loading || !folder || !newUrl.trim()}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: 'var(--accent)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: newUrl.trim() ? 'pointer' : 'default',
+                fontFamily: 'var(--font-body)',
+                opacity: newUrl.trim() ? 1 : 0.6,
+              }}
+              onMouseEnter={(e) => {
+                if (newUrl.trim()) e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
+              }}
+              onMouseLeave={(e) => {
+                if (newUrl.trim()) e.currentTarget.style.backgroundColor = 'var(--accent)';
+              }}
+            >
+              Save
+            </button>
+          </form>
+        </div>
+
+        {/* LINK GRID OR EMPTY/LOADING STATES */}
+        {loading ? (
+          <div className="links-grid">
+            {[...Array(6)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : links.length === 0 ? (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 'var(--space-12) var(--space-6)',
+              textAlign: 'center',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              boxShadow: 'var(--shadow-card)',
+              maxWidth: '500px',
+              margin: 'var(--space-8) auto',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: 'var(--accent-subtle)',
+                color: 'var(--accent)',
+                marginBottom: 'var(--space-4)',
+                animation: 'bounce 2s infinite',
+              }}
+            >
+              <ArrowUp size={32} />
+            </div>
+            <h3
+              style={{
+                fontSize: '18px',
+                fontWeight: 600,
+                color: 'var(--text)',
+                margin: '0 0 var(--space-2) 0',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              This folder is empty
+            </h3>
+            <p
+              style={{
+                fontSize: '14px',
+                color: 'var(--text-muted)',
+                margin: 0,
+                fontFamily: 'var(--font-body)',
+                lineHeight: 1.5,
+                maxWidth: '300px',
+              }}
+            >
+              Paste a URL above to save your first link
+            </p>
+          </div>
+        ) : (
+          <div className="links-grid">
+            {sortedLinks.map((link) => (
+              <LinkCard
+                key={link.id}
+                id={link.id}
+                url={link.url}
+                title={link.title}
+                description={link.description}
+                screenshotUrl={link.screenshot_url}
+                faviconUrl={link.favicon_url}
+                snapshotStatus={link.snapshot_status}
+                tags={link.link_tags?.map((lt) => lt.tags) ?? []}
+                onDelete={setDeleteTargetId}
+                allTags={allTags}
+                onAttachTag={handleAttachTag}
+                onRemoveTag={handleRemoveTag}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="flex gap-2 mb-8">
-        <input
-          type="url"
-          placeholder="Paste a URL..."
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          className="flex-1 border rounded px-3 py-2 text-sm"
-        />
-        <button
-          onClick={handleSave}
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
-        >
-          {loading ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteTargetId !== null}
+        title="Delete Link"
+        message="Delete this link? This cannot be undone."
+        confirmText="Delete"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTargetId(null)}
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {links.map(link => (
-          <LinkCard
-            key={link.id}
-            link={link}
-            tags={tags}
-            attachTag={attachTag}
-            removeTag={removeTag}
-          />
+      {/* Toast Notification Container */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          pointerEvents: 'none',
+        }}
+      >
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className="toast-item"
+            style={{
+              pointerEvents: 'auto',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderLeft: `4px solid ${toast.type === 'success' ? 'var(--success)' : 'var(--error)'}`,
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 16px',
+              boxShadow: 'var(--shadow-hover)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              minWidth: '280px',
+              maxWidth: '360px',
+            }}
+          >
+            {toast.type === 'success' ? (
+              <CheckCircle size={18} style={{ color: 'var(--success)', flexShrink: 0 }} />
+            ) : (
+              <AlertCircle size={18} style={{ color: 'var(--error)', flexShrink: 0 }} />
+            )}
+            <span
+              style={{
+                fontSize: '13px',
+                fontWeight: 500,
+                color: 'var(--text)',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              {toast.message}
+            </span>
+          </div>
         ))}
       </div>
-    </div>
-  )
-}
-
-// ── Link Card Component ───────────────────────────────────────────
-
-function LinkCard({ link, tags, attachTag, removeTag }: {
-  link: Link
-  tags: Tag[]
-  attachTag: (tagId: string, linkId: string) => Promise<void>
-  removeTag: (tagId: string, linkId: string) => Promise<void>
-}) {
-  const domain = (() => {
-    try { return new URL(link.url).hostname }
-    catch { return link.url }
-  })()
-
-  if (link.snapshot_status === 'pending') {
-    return (
-      <div className="border rounded-lg overflow-hidden">
-        <div className="h-36 bg-gray-100 animate-pulse" />
-        <div className="p-3">
-          <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4 mb-2" />
-          <div className="h-3 bg-gray-100 rounded animate-pulse w-1/2" />
-        </div>
-      </div>
-    )
-  }
-
-  if (link.screenshot_url) {
-  return (
-    <div className="border rounded-lg  hover:shadow-md transition-shadow">
-      {/* Only this part is a link */}
-      <a href={link.url} target="_blank" rel="noopener noreferrer" className="block">
-        <img
-          src={link.screenshot_url}
-          alt={link.title || domain}
-          className="w-full h-36 object-cover object-top"
-        />
-        <div className="p-3 pb-1">
-          <p className="text-sm font-medium truncate">{link.title || domain}</p>
-          <p className="text-xs text-gray-400 truncate">{domain}</p>
-        </div>
-      </a>
-      {/* TagPicker is OUTSIDE the <a> tag */}
-      <div className="px-3 pb-3">
-        <TagPicker
-          linkId={link.id}
-          initialLinkTags={link.link_tags ?? []}
-          tags={tags}
-          attachTag={attachTag}
-          removeTag={removeTag}
-        />
-      </div>
-    </div>
-  )
-}
-
- return (
-  <div className="border rounded-lg hover:shadow-md transition-shadow">
-    <a href={link.url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-t-lg">
-      <div className="h-36 bg-gray-50 flex items-center justify-center">
-        {link.favicon_url
-          ? <img src={link.favicon_url} alt="" className="w-10 h-10" onError={e => (e.currentTarget.style.display = 'none')} />
-          : <span className="text-2xl font-bold text-gray-300">{domain[0]?.toUpperCase()}</span>
-        }
-      </div>
-      <div className="p-3 pb-1">
-        <p className="text-sm font-medium truncate">{link.title || domain}</p>
-        <p className="text-xs text-gray-400 truncate">{domain}</p>
-      </div>
-    </a>
-    <div className="px-3 pb-3">
-      <TagPicker
-        linkId={link.id}
-        initialLinkTags={link.link_tags ?? []}
-        tags={tags}
-        attachTag={attachTag}
-        removeTag={removeTag}
-      />
-    </div>
-  </div>
-)
+    </>
+  );
 }

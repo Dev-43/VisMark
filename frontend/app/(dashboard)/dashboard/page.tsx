@@ -1,12 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Plus, CheckCircle, AlertCircle, ArrowLeft, Search as SearchIcon } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import FolderCard, { FolderData } from '@/components/FolderCard';
+import LinkCard from '@/components/LinkCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { useTags, Tag } from '@/lib/hooks/useTags';
+
+interface RawLink {
+  id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  screenshot_url: string | null;
+  favicon_url: string | null;
+  snapshot_status: 'pending' | 'done' | 'failed';
+  link_tags?: { tag_id: string; tags: Tag }[];
+  created_at: string;
+}
 
 interface Toast {
   id: string;
@@ -23,11 +38,22 @@ interface RawFolder {
   public_slug: string | null;
 }
 
-export default function Page() {
+function DashboardContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const searchQuery = searchParams?.get('q') || '';
+
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<FolderData | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // Search results states
+  const [searchResults, setSearchResults] = useState<RawLink[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [deleteTargetLinkId, setDeleteTargetLinkId] = useState<string | null>(null);
+
+  const { tags: allTags, attachTag, removeTag } = useTags();
 
   // Lightweight custom Toast helper
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
@@ -37,6 +63,90 @@ export default function Page() {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);
   }, []);
+
+  // Fetch search results
+  useEffect(() => {
+    if (!searchQuery) {
+      setSearchResults([]);
+      return;
+    }
+
+    async function doSearch() {
+      setSearchLoading(true);
+      try {
+        const res = await apiFetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+        setSearchResults(data.results || []);
+      } catch (err) {
+        console.error(err);
+        showToast('Search query failed', 'error');
+      } finally {
+        setSearchLoading(false);
+      }
+    }
+
+    doSearch();
+  }, [searchQuery, showToast]);
+
+  const handleAttachTag = async (tagId: string, linkId: string) => {
+    try {
+      await attachTag(tagId, linkId);
+      const tagObj = allTags.find((t) => t.id === tagId);
+      if (!tagObj) return;
+
+      setSearchResults((prev) =>
+        prev.map((link) => {
+          if (link.id !== linkId) return link;
+          const currentTags = link.link_tags || [];
+          if (currentTags.some((lt) => lt.tag_id === tagId)) return link;
+          return {
+            ...link,
+            link_tags: [...currentTags, { tag_id: tagId, tags: tagObj }],
+          };
+        })
+      );
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to assign tag', 'error');
+    }
+  };
+
+  const handleRemoveTag = async (tagId: string, linkId: string) => {
+    try {
+      await removeTag(tagId, linkId);
+      setSearchResults((prev) =>
+        prev.map((link) => {
+          if (link.id !== linkId) return link;
+          const currentTags = link.link_tags || [];
+          return {
+            ...link,
+            link_tags: currentTags.filter((lt) => lt.tag_id !== tagId),
+          };
+        })
+      );
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to remove tag', 'error');
+    }
+  };
+
+  const handleLinkDeleteConfirm = async () => {
+    if (!deleteTargetLinkId) return;
+    try {
+      const res = await apiFetch(`/api/links/${deleteTargetLinkId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete link');
+
+      showToast('Link deleted successfully', 'success');
+      setSearchResults((prev) => prev.filter((l) => l.id !== deleteTargetLinkId));
+      setDeleteTargetLinkId(null);
+    } catch (err) {
+      console.error(err);
+      showToast(err instanceof Error ? err.message : 'Failed to delete link', 'error');
+    }
+  };
 
   const fetchFolders = useCallback(async () => {
     try {
@@ -296,20 +406,20 @@ export default function Page() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
-        .folders-grid {
+        .folders-grid, .links-grid {
           display: grid;
           gap: var(--space-6);
           grid-template-columns: repeat(1, minmax(0, 1fr));
         }
 
         @media (min-width: 640px) {
-          .folders-grid {
+          .folders-grid, .links-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
         @media (min-width: 1024px) {
-          .folders-grid {
+          .folders-grid, .links-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
         }
@@ -344,45 +454,156 @@ export default function Page() {
       `}} />
 
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {loading ? (
-          <div className="folders-grid">
-            <NewFolderCard />
-            {[...Array(6)].map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
-        ) : folders.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', maxWidth: '340px' }}>
-              <NewFolderCard />
+        {searchQuery ? (
+          /* ── SEARCH RESULTS VIEW ── */
+          <div>
+            {/* Back Button */}
+            <div style={{ marginBottom: 'var(--space-6)' }}>
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard')}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: 0,
+                  fontFamily: 'var(--font-body)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                <ArrowLeft size={16} />
+                <span>Back to folders</span>
+              </button>
             </div>
-            <EmptyState
-              message="No folders yet"
-              subMessage="Create your first folder to start saving links visually"
-            />
+
+            {/* Results Grid */}
+            {searchLoading ? (
+              <div className="links-grid">
+                {[...Array(6)].map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
+            ) : searchResults.length === 0 ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '64px 24px',
+                  textAlign: 'center',
+                  backgroundColor: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-lg)',
+                }}
+              >
+                <SearchIcon size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px', opacity: 0.5 }} />
+                <h3
+                  style={{
+                    fontSize: '18px',
+                    fontWeight: 600,
+                    color: 'var(--text)',
+                    margin: '0 0 var(--space-2) 0',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  No results found
+                </h3>
+                <p
+                  style={{
+                    fontSize: '14px',
+                    color: 'var(--text-muted)',
+                    margin: 0,
+                    fontFamily: 'var(--font-body)',
+                    lineHeight: 1.5,
+                    maxWidth: '300px',
+                  }}
+                >
+                  We couldn&apos;t find any links matching &quot;{searchQuery}&quot;. Try checking for spelling errors or using different keywords.
+                </p>
+              </div>
+            ) : (
+              <div className="links-grid">
+                {searchResults.map((link) => (
+                  <LinkCard
+                    key={link.id}
+                    id={link.id}
+                    url={link.url}
+                    title={link.title}
+                    description={link.description}
+                    screenshotUrl={link.screenshot_url}
+                    faviconUrl={link.favicon_url}
+                    snapshotStatus={link.snapshot_status}
+                    tags={link.link_tags?.map((lt) => lt.tags) ?? []}
+                    onDelete={setDeleteTargetLinkId}
+                    allTags={allTags}
+                    onAttachTag={handleAttachTag}
+                    onRemoveTag={handleRemoveTag}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="folders-grid">
-            <NewFolderCard />
-            {folders.map((folder) => (
-              <FolderCard
-                key={folder.id}
-                folder={folder}
-                onRename={handleRename}
-                onDeleteClick={setDeleteTarget}
-              />
-            ))}
+          /* ── NORMAL FOLDERS VIEW ── */
+          <div>
+            {loading ? (
+              <div className="folders-grid">
+                <NewFolderCard />
+                {[...Array(6)].map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
+            ) : folders.length === 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', maxWidth: '340px' }}>
+                  <NewFolderCard />
+                </div>
+                <EmptyState
+                  message="No folders yet"
+                  subMessage="Create your first folder to start saving links visually"
+                />
+              </div>
+            ) : (
+              <div className="folders-grid">
+                <NewFolderCard />
+                {folders.map((folder) => (
+                  <FolderCard
+                    key={folder.id}
+                    folder={folder}
+                    onRename={handleRename}
+                    onDeleteClick={setDeleteTarget}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog for Folder Deletion */}
       <ConfirmDialog
         isOpen={deleteTarget !== null}
         title="Delete Folder"
         message={`Are you sure you want to delete "${deleteTarget?.name}"? All links in this folder will be deleted permanently.`}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Confirmation Dialog for Link Deletion */}
+      <ConfirmDialog
+        isOpen={deleteTargetLinkId !== null}
+        title="Delete Link"
+        message="Delete this link? This cannot be undone."
+        confirmText="Delete"
+        onConfirm={handleLinkDeleteConfirm}
+        onCancel={() => setDeleteTargetLinkId(null)}
       />
 
       {/* Toast Notification Container */}
@@ -436,5 +657,17 @@ export default function Page() {
         ))}
       </div>
     </>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={
+      <div style={{ padding: '24px', color: 'var(--text-muted)', fontFamily: 'var(--font-body)' }}>
+        Loading dashboard...
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

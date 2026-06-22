@@ -73,7 +73,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   useEffect(() => {
     async function resolveTitle() {
       if (pathname === "/dashboard") {
-        setPageTitle("My Folders");
+        const q = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("q") || "" : "";
+        setPageTitle(q ? `Search: "${q}"` : "My Folders");
         return;
       }
 

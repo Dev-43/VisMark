@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Menu, Search } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -37,9 +37,18 @@ function UserAvatar({ email }: { email: string }) {
 
 export function Topbar({ pageTitle, userEmail, onMenuClick }: TopbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync input value with search query parameter in URL
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const q = new URLSearchParams(window.location.search).get("q") || "";
+      setQuery(q);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
