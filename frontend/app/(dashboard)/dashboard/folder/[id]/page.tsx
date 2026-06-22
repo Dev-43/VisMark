@@ -1,4 +1,5 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
@@ -36,7 +37,6 @@ export default function FolderPage() {
   const pollRef = useRef<NodeJS.Timeout | null>(null)
   const { tags, attachTag, removeTag } = useTags() // ← fetched ONCE here
   const [isPublic, setIsPublic] = useState(false)
-  const [publicSlug, setPublicSlug] = useState<string | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
 
   const fetchLinks = useCallback(async () => {
@@ -62,7 +62,6 @@ export default function FolderPage() {
   const res = await apiFetch(`/api/folders/${folderId}`)
   const data = await res.json()
   setIsPublic(data.is_public)
-  setPublicSlug(data.public_slug)
   }, [folderId])
 
   useEffect(() => {
@@ -94,7 +93,6 @@ export default function FolderPage() {
     })
     const data = await res.json()
     setIsPublic(data.is_public)
-    setPublicSlug(data.public_slug)
 
     if (data.public_slug) {
       const shareUrl = `${window.location.origin}/share/${data.public_slug}`
@@ -157,7 +155,7 @@ export default function FolderPage() {
 
 function LinkCard({ link, tags, attachTag, removeTag }: {
   link: Link
-  tags: any[]
+  tags: Tag[]
   attachTag: (tagId: string, linkId: string) => Promise<void>
   removeTag: (tagId: string, linkId: string) => Promise<void>
 }) {

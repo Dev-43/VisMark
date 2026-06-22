@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiFetch } from '@/lib/apiFetch'
 
+export interface Tag {
+  id: string
+  name: string
+}
+
 export function useTags() {
-  const [tags, setTags] = useState<any[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
 
   const fetchTags = useCallback(async () => {
     const res = await apiFetch('/api/tags')

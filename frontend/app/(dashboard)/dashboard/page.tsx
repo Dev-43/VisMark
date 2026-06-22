@@ -26,7 +26,6 @@ export default function DashboardPage() {
 
   const getToken = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
-    console.log('Current session:', session?.access_token)
     return session?.access_token
   }, [supabase])
 
@@ -111,7 +110,6 @@ export default function DashboardPage() {
       </div>
       <hr style={{ margin: '24px 0' }} />
       <hr style={{ margin: '24px 0' }} />
-      <button onClick={getToken}>Log Token</button>
       {/* Create Folder */}
       <h2>Folders</h2>
       <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>

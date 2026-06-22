@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { Tag } from '@/lib/hooks/useTags'
 
 interface Props {
   linkId: string
   initialLinkTags: { tag_id: string }[]
-  tags: any[]
+  tags: Tag[]
   attachTag: (tagId: string, linkId: string) => Promise<void>
   removeTag: (tagId: string, linkId: string) => Promise<void>
 }

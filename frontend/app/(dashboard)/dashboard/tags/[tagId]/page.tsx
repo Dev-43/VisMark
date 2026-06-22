@@ -1,21 +1,30 @@
 'use client'
+/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { apiFetch } from '@/lib/apiFetch'
 import Link from 'next/link'
+import { Tag } from '@/lib/hooks/useTags'
+
+type LinkItem = {
+  id: string
+  url: string
+  title: string | null
+  screenshot_url: string | null
+}
 
 export default function TagPage() {
   const { tagId } = useParams()
-  const [links, setLinks] = useState<any[]>([])
+  const [links, setLinks] = useState<LinkItem[]>([])
   const [tagName, setTagName] = useState('')
 
   useEffect(() => {
     async function load() {
       // fetch tag name
       const tagsRes = await apiFetch('/api/tags')
-      const tags = await tagsRes.json()
-      const tag = tags.find((t: any) => t.id === tagId)
+      const tags: Tag[] = await tagsRes.json()
+      const tag = tags.find((t) => t.id === tagId)
       if (tag) setTagName(tag.name)
 
       // fetch links for this tag
