@@ -60,12 +60,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
 
     init();
+
+    const handleUpdate = () => {
+      fetchFolders();
+    };
+    window.addEventListener("folders-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("folders-updated", handleUpdate);
+    };
   }, [fetchFolders, supabase]);
 
   useEffect(() => {
     async function resolveTitle() {
       if (pathname === "/dashboard") {
-        setPageTitle("Dashboard");
+        setPageTitle("My Folders");
         return;
       }
 
