@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/ToastProvider";
 import "../styles/globals.css";
 
 const satoshi = localFont({
@@ -44,8 +45,11 @@ export default function RootLayout({
       <body
         className={`${satoshi.variable} ${clashDisplay.variable} ${jetbrainsMono.variable} antialiased`}
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
 }
+

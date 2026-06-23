@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowUp, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import LinkCard from '@/components/LinkCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useTags } from '@/lib/hooks/useTags';
+import { useToast } from '@/components/ToastProvider';
 
 interface Tag {
   id: string;
@@ -33,17 +34,12 @@ interface FolderData {
   public_slug: string | null;
 }
 
-interface Toast {
-  id: string;
-  message: string;
-  type: 'success' | 'error';
-}
-
 type SortOption = 'newest' | 'oldest' | 'alpha';
 
 export default function FolderPage() {
   const params = useParams();
   const id = params?.id as string;
+  const { showToast } = useToast();
 
   const [folder, setFolder] = useState<FolderData | null>(null);
   const [links, setLinks] = useState<RawLink[]>([]);
@@ -51,7 +47,6 @@ export default function FolderPage() {
   const [newUrl, setNewUrl] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
 
   const { tags: allTags, attachTag, removeTag } = useTags();
 
@@ -96,14 +91,6 @@ export default function FolderPage() {
       showToast('Failed to remove tag', 'error');
     }
   };
-
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    const toastId = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id: toastId, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== toastId));
-    }, 3000);
-  }, []);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
@@ -551,7 +538,7 @@ export default function FolderPage() {
         {loading ? (
           <div className="links-grid">
             {[...Array(6)].map((_, i) => (
-              <SkeletonCard key={i} />
+              <SkeletonCard key={i} variant="link" />
             ))}
           </div>
         ) : links.length === 0 ? (
@@ -639,61 +626,9 @@ export default function FolderPage() {
         isOpen={deleteTargetId !== null}
         title="Delete Link"
         message="Delete this link? This cannot be undone."
-        confirmText="Delete"
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTargetId(null)}
       />
-
-      {/* Toast Notification Container */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          pointerEvents: 'none',
-        }}
-      >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className="toast-item"
-            style={{
-              pointerEvents: 'auto',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderLeft: `4px solid ${toast.type === 'success' ? 'var(--success)' : 'var(--error)'}`,
-              borderRadius: 'var(--radius-md)',
-              padding: '12px 16px',
-              boxShadow: 'var(--shadow-hover)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              minWidth: '280px',
-              maxWidth: '360px',
-            }}
-          >
-            {toast.type === 'success' ? (
-              <CheckCircle size={18} style={{ color: 'var(--success)', flexShrink: 0 }} />
-            ) : (
-              <AlertCircle size={18} style={{ color: 'var(--error)', flexShrink: 0 }} />
-            )}
-            <span
-              style={{
-                fontSize: '13px',
-                fontWeight: 500,
-                color: 'var(--text)',
-                fontFamily: 'var(--font-body)',
-              }}
-            >
-              {toast.message}
-            </span>
-          </div>
-        ))}
-      </div>
     </>
   );
 }

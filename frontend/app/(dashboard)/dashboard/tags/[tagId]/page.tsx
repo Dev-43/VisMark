@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle, AlertCircle, Tag as TagIcon } from 'lucide-react';
+import { ArrowLeft, Tag as TagIcon } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import LinkCard from '@/components/LinkCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useTags, Tag } from '@/lib/hooks/useTags';
+import { useToast } from '@/components/ToastProvider';
 
 interface RawLink {
   id: string;
@@ -21,35 +22,22 @@ interface RawLink {
   created_at: string;
 }
 
-interface Toast {
-  id: string;
-  message: string;
-  type: 'success' | 'error';
-}
-
 type SortOption = 'newest' | 'oldest' | 'alpha';
 
 export default function TagPage() {
   const params = useParams();
   const router = useRouter();
   const tagId = params?.tagId as string;
+  const { showToast } = useToast();
 
   const [tagName, setTagName] = useState('');
   const [links, setLinks] = useState<RawLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
 
   const { tags: allTags, attachTag, removeTag } = useTags();
 
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    const toastId = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id: toastId, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== toastId));
-    }, 3000);
-  }, []);
 
   const fetchData = useCallback(async () => {
     if (!tagId) return;
@@ -334,7 +322,7 @@ export default function TagPage() {
         {loading ? (
           <div className="links-grid" style={{ marginTop: 0 }}>
             {[...Array(6)].map((_, i) => (
-              <SkeletonCard key={i} />
+              <SkeletonCard key={i} variant="link" />
             ))}
           </div>
         ) : links.length === 0 ? (
@@ -404,52 +392,9 @@ export default function TagPage() {
         isOpen={deleteTargetId !== null}
         title="Delete Link"
         message="Delete this link? This cannot be undone."
-        confirmText="Delete"
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTargetId(null)}
       />
-
-      {/* Toast Notification Container */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          pointerEvents: 'none',
-        }}
-      >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className="toast-item"
-            style={{
-              pointerEvents: 'auto',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              backgroundColor: 'var(--surface)',
-              border: '1px solid var(--border)',
-              boxShadow: 'var(--shadow-card)',
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--text)',
-              fontSize: '14px',
-              fontWeight: 500,
-            }}
-          >
-            {toast.type === 'success' ? (
-              <CheckCircle size={18} style={{ color: 'var(--success)' }} />
-            ) : (
-              <AlertCircle size={18} style={{ color: 'var(--error)' }} />
-            )}
-            <span>{toast.message}</span>
-          </div>
-        ))}
-      </div>
     </>
   );
 }

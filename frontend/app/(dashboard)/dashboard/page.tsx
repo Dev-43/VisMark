@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Plus, CheckCircle, AlertCircle, ArrowLeft, Search as SearchIcon } from 'lucide-react';
+import { Plus, ArrowLeft, Search as SearchIcon, FolderOpen } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 import FolderCard, { FolderData } from '@/components/FolderCard';
 import LinkCard from '@/components/LinkCard';
@@ -10,6 +10,7 @@ import SkeletonCard from '@/components/SkeletonCard';
 import EmptyState from '@/components/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useTags, Tag } from '@/lib/hooks/useTags';
+import { useToast } from '@/components/ToastProvider';
 
 interface RawLink {
   id: string;
@@ -21,12 +22,6 @@ interface RawLink {
   snapshot_status: 'pending' | 'done' | 'failed';
   link_tags?: { tag_id: string; tags: Tag }[];
   created_at: string;
-}
-
-interface Toast {
-  id: string;
-  message: string;
-  type: 'success' | 'error';
 }
 
 interface RawFolder {
@@ -42,11 +37,11 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const searchQuery = searchParams?.get('q') || '';
+  const { showToast } = useToast();
 
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<FolderData | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Search results states
   const [searchResults, setSearchResults] = useState<RawLink[]>([]);
@@ -55,14 +50,6 @@ function DashboardContent() {
 
   const { tags: allTags, attachTag, removeTag } = useTags();
 
-  // Lightweight custom Toast helper
-  const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
-  }, []);
 
   // Fetch search results
   useEffect(() => {
@@ -486,7 +473,7 @@ function DashboardContent() {
             {searchLoading ? (
               <div className="links-grid">
                 {[...Array(6)].map((_, i) => (
-                  <SkeletonCard key={i} />
+                  <SkeletonCard key={i} variant="link" />
                 ))}
               </div>
             ) : searchResults.length === 0 ? (
@@ -557,7 +544,7 @@ function DashboardContent() {
               <div className="folders-grid">
                 <NewFolderCard />
                 {[...Array(6)].map((_, i) => (
-                  <SkeletonCard key={i} />
+                  <SkeletonCard key={i} variant="folder" />
                 ))}
               </div>
             ) : folders.length === 0 ? (
@@ -566,8 +553,9 @@ function DashboardContent() {
                   <NewFolderCard />
                 </div>
                 <EmptyState
-                  message="No folders yet"
-                  subMessage="Create your first folder to start saving links visually"
+                  icon={<FolderOpen />}
+                  title="No folders yet"
+                  description="Create your first folder to start saving links visually"
                 />
               </div>
             ) : (
@@ -601,61 +589,9 @@ function DashboardContent() {
         isOpen={deleteTargetLinkId !== null}
         title="Delete Link"
         message="Delete this link? This cannot be undone."
-        confirmText="Delete"
         onConfirm={handleLinkDeleteConfirm}
         onCancel={() => setDeleteTargetLinkId(null)}
       />
-
-      {/* Toast Notification Container */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          pointerEvents: 'none',
-        }}
-      >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className="toast-item"
-            style={{
-              pointerEvents: 'auto',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderLeft: `4px solid ${toast.type === 'success' ? 'var(--success)' : 'var(--error)'}`,
-              borderRadius: 'var(--radius-md)',
-              padding: '12px 16px',
-              boxShadow: 'var(--shadow-hover)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              minWidth: '280px',
-              maxWidth: '360px',
-            }}
-          >
-            {toast.type === 'success' ? (
-              <CheckCircle size={18} style={{ color: 'var(--success)', flexShrink: 0 }} />
-            ) : (
-              <AlertCircle size={18} style={{ color: 'var(--error)', flexShrink: 0 }} />
-            )}
-            <span
-              style={{
-                fontSize: '13px',
-                fontWeight: 500,
-                color: 'var(--text)',
-                fontFamily: 'var(--font-body)',
-              }}
-            >
-              {toast.message}
-            </span>
-          </div>
-        ))}
-      </div>
     </>
   );
 }

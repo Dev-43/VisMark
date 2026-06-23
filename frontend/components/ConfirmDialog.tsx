@@ -4,8 +4,7 @@ interface ConfirmDialogProps {
   isOpen: boolean;
   title: string;
   message: string;
-  confirmText?: string;
-  cancelText?: string;
+  confirmLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -14,106 +13,121 @@ export default function ConfirmDialog({
   isOpen,
   title,
   message,
-  confirmText = 'Delete',
-  cancelText = 'Cancel',
+  confirmLabel = 'Delete',
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: 'var(--space-6)',
-          width: '90%',
-          maxWidth: '400px',
-          boxShadow: 'var(--shadow-hover)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3
-          style={{
-            margin: '0 0 var(--space-2) 0',
-            fontSize: '18px',
-            fontWeight: 600,
-            color: 'var(--text)',
-          }}
-        >
-          {title}
-        </h3>
-        <p
-          style={{
-            margin: '0 0 var(--space-6) 0',
-            fontSize: '14px',
-            color: 'var(--text-muted)',
-            lineHeight: 1.5,
-          }}
-        >
-          {message}
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{
-              padding: '8px 16px',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--border)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--surface-2)';
-            }}
-          >
-            {cancelText}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--error)',
-              color: '#ffffff',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = '0.9';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = '1';
-            }}
-          >
-            {confirmText}
-          </button>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes confirm-backdrop-fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes confirm-dialog-scale-in {
+          from {
+            transform: scale(0.95);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        .confirm-backdrop {
+          position: fixed;
+          inset: 0;
+          background-color: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          animation: confirm-backdrop-fade-in 200ms ease-out forwards;
+        }
+        .confirm-dialog-box {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-xl);
+          padding: 32px;
+          width: 90%;
+          max-width: 420px;
+          box-shadow: var(--shadow-hover);
+          animation: confirm-dialog-scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .confirm-dialog-title {
+          font-family: var(--font-display);
+          font-size: 20px;
+          color: var(--text);
+          margin: 0;
+          font-weight: 600;
+        }
+        .confirm-dialog-message {
+          font-family: var(--font-body);
+          font-size: 14px;
+          color: var(--text-muted);
+          margin: 8px 0 0 0;
+          line-height: 1.5;
+        }
+        .confirm-buttons-row {
+          margin-top: 24px;
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+        }
+        .confirm-btn-cancel {
+          background: transparent;
+          border: none;
+          padding: 8px 16px;
+          border-radius: var(--radius-md);
+          color: var(--text-muted);
+          font-family: var(--font-body);
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all var(--transition);
+        }
+        .confirm-btn-cancel:hover {
+          color: var(--text);
+          background: var(--surface-2);
+        }
+        .confirm-btn-confirm {
+          background: var(--error);
+          border: none;
+          padding: 8px 16px;
+          border-radius: var(--radius-md);
+          color: #ffffff;
+          font-family: var(--font-body);
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all var(--transition);
+        }
+        .confirm-btn-confirm:hover {
+          opacity: 0.9;
+        }
+      ` }} />
+      <div className="confirm-backdrop" onClick={onCancel}>
+        <div className="confirm-dialog-box" onClick={(e) => e.stopPropagation()}>
+          <h3 className="confirm-dialog-title">{title}</h3>
+          <p className="confirm-dialog-message">{message}</p>
+          <div className="confirm-buttons-row">
+            <button type="button" className="confirm-btn-cancel" onClick={onCancel}>
+              Cancel
+            </button>
+            <button type="button" className="confirm-btn-confirm" onClick={onConfirm}>
+              {confirmLabel}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
+
