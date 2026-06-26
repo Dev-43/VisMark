@@ -23,8 +23,37 @@ export async function takeScreenshot(url, linkId) {
     await page.setViewport({ width: 1280, height: 800 })
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 15000 })
 
+    let metadata = { title: null, description: null, favicon: null }
+    try {
+      metadata = await page.evaluate(() => {
+        const getMeta = (property) => {
+          const element = document.querySelector(`meta[property="${property}"]`) || 
+                          document.querySelector(`meta[name="${property}"]`);
+          return element ? element.getAttribute('content') : null;
+        };
+
+        const title = getMeta('og:title') || document.title || null;
+        const description = getMeta('og:description') || getMeta('description') || null;
+
+        let favicon = null;
+        const rels = ['icon', 'shortcut icon', 'apple-touch-icon'];
+        for (const rel of rels) {
+          const link = document.querySelector(`link[rel*="${rel}"]`);
+          if (link && link.href) {
+            favicon = link.href;
+            break;
+          }
+        }
+
+        return { title, description, favicon };
+      });
+    } catch (evalErr) {
+      console.warn(`Failed to extract page metadata with Puppeteer:`, evalErr.message)
+    }
+
     const screenshotBuffer = await page.screenshot({ type: 'png' })
     await browser.close()
+    browser = null
 
     const filePath = `screenshots/${linkId}.png`
 
@@ -41,7 +70,22 @@ export async function takeScreenshot(url, linkId) {
       .from(process.env.SUPABASE_STORAGE_BUCKET)
       .getPublicUrl(filePath)
 
-    return data.publicUrl
+    let faviconUrl = metadata.favicon
+    if (!faviconUrl) {
+      try {
+        const { origin } = new URL(url)
+        faviconUrl = `${origin}/favicon.ico`
+      } catch {
+        // ignore
+      }
+    }
+
+    return {
+      screenshotUrl: data.publicUrl,
+      title: metadata.title,
+      description: metadata.description,
+      faviconUrl,
+    }
 
   } catch (err) {
     if (browser) await browser.close()

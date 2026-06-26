@@ -28,8 +28,14 @@ const worker = new Worker(
     console.log(`Processing job for link ${linkId}: ${url}`)
 
     try {
-      const screenshotUrl = await takeScreenshot(url, linkId)
-      await updateLink(linkId, { screenshot_url: screenshotUrl, snapshot_status: 'done' })
+      const { screenshotUrl, title, description, faviconUrl } = await takeScreenshot(url, linkId)
+      await updateLink(linkId, {
+        screenshot_url: screenshotUrl,
+        title,
+        description,
+        favicon_url: faviconUrl,
+        snapshot_status: 'done',
+      })
       console.log(`✅ Puppeteer succeeded for ${url}`)
       return
     } catch (puppeteerErr) {
