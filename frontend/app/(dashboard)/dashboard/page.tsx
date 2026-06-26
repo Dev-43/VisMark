@@ -295,7 +295,7 @@ function DashboardContent() {
               style={{
                 width: '100%',
                 padding: '8px 12px',
-                fontSize: '14px',
+                fontSize: '16px', // Prevents auto-zoom on iOS
                 color: 'var(--text)',
                 backgroundColor: 'var(--surface-2)',
                 border: '1px solid var(--border)',

@@ -113,6 +113,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     setDrawerOpen(false);
   }, [pathname]);
 
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (drawerOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [drawerOpen]);
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -211,6 +223,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       <style jsx global>{`
+        @keyframes drawerOverlayFadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        .dashboard-drawer-overlay {
+          animation: drawerOverlayFadeIn 200ms ease-out forwards;
+        }
+
         @media (min-width: 768px) {
           .dashboard-sidebar-desktop {
             display: block;

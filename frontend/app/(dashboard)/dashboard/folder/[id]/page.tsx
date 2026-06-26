@@ -333,6 +333,17 @@ export default function FolderPage() {
         .toast-item {
           animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
+
+        @media (max-width: 500px) {
+          .url-input-form {
+            flex-direction: column !important;
+            gap: 8px !important;
+          }
+          .url-input-form button {
+            width: 100% !important;
+            justify-content: center;
+          }
+        }
       `}} />
 
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -474,6 +485,7 @@ export default function FolderPage() {
         >
           <form
             onSubmit={handleSave}
+            className="url-input-form"
             style={{
               display: 'flex',
               gap: '12px',
@@ -489,7 +501,7 @@ export default function FolderPage() {
               style={{
                 flex: 1,
                 padding: '12px 16px',
-                fontSize: '14px',
+                fontSize: '16px', // Prevents auto-zoom on iOS
                 color: 'var(--text)',
                 backgroundColor: 'var(--surface)',
                 border: '1px solid var(--border)',

@@ -64,9 +64,109 @@ export default function Page() {
             transform: translateY(0);
           }
         }
+
+        @media (max-width: 768px) {
+          .landing-navbar {
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+          }
+          .landing-hero {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+            padding: 80px 16px 60px 16px !important;
+            gap: 40px !important;
+            min-height: auto !important;
+          }
+          .hero-left {
+            flex: none !important;
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+          }
+          .hero-title {
+            font-size: 42px !important;
+            line-height: 1.15 !important;
+          }
+          .hero-left p {
+            max-width: 100% !important;
+            margin-bottom: 24px !important;
+          }
+          .hero-actions {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .hero-right {
+            flex: none !important;
+            width: 100% !important;
+            max-width: 500px !important;
+          }
+          .landing-section {
+            padding: 60px 16px !important;
+          }
+          .landing-section h2 {
+            font-size: 32px !important;
+            margin-bottom: 40px !important;
+          }
+          .steps-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .features-split-grid {
+            grid-template-columns: 1fr !important;
+            gap: 32px !important;
+            margin-bottom: 48px !important;
+          }
+          .features-grid {
+            grid-template-columns: 1fr !important;
+            gap: 32px !important;
+          }
+          .cta-title {
+            font-size: 36px !important;
+            line-height: 1.3 !important;
+            margin-bottom: 24px !important;
+          }
+          .landing-footer {
+            flex-direction: column !important;
+            gap: 24px !important;
+            padding: 32px 16px !important;
+            align-items: center !important;
+            text-align: center !important;
+          }
+          .landing-footer-left {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 8px !important;
+          }
+          .landing-footer-left span {
+            margin-left: 0 !important;
+          }
+          .landing-footer-right {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 12px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .hero-actions {
+            flex-direction: column !important;
+            width: 100% !important;
+            gap: 16px !important;
+          }
+          .hero-actions a, .hero-actions button {
+            width: 100% !important;
+          }
+          .hero-actions button {
+            width: 100% !important;
+            justify-content: center;
+          }
+        }
       `}</style>
       {/* Navbar */}
       <nav
+        className="landing-navbar"
         style={{
           position: 'sticky',
           top: 0,
@@ -128,6 +228,7 @@ export default function Page() {
 
       {/* Hero Section */}
       <section
+        className="landing-hero"
         style={{
           minHeight: '100vh',
           display: 'flex',
@@ -141,10 +242,13 @@ export default function Page() {
         }}
       >
         {/* Left side */}
-        <div style={{ 
-          flex: '0 0 55%',
-          animation: 'fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both'
-        }}>
+        <div
+          className="hero-left"
+          style={{ 
+            flex: '0 0 55%',
+            animation: 'fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both'
+          }}
+        >
           <div
             style={{
               fontSize: '13px',
@@ -158,6 +262,7 @@ export default function Page() {
           </div>
 
           <h1
+            className="hero-title"
             style={{
               fontSize: '80px',
               fontWeight: 800,
@@ -187,7 +292,7 @@ export default function Page() {
           </p>
 
           {/* CTA buttons */}
-          <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <div className="hero-actions" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
             <Link href="/login">
               <button
                 style={{
@@ -245,11 +350,14 @@ export default function Page() {
         </div>
 
         {/* Right side - Browser mockup */}
-        <div style={{ 
-          flex: '0 0 45%', 
-          overflow: 'hidden',
-          animation: 'fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both'
-        }}>
+        <div
+          className="hero-right"
+          style={{ 
+            flex: '0 0 45%', 
+            overflow: 'hidden',
+            animation: 'fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both'
+          }}
+        >
           <div
             style={{
               border: '1px solid var(--border)',
@@ -355,6 +463,7 @@ export default function Page() {
       {/* How It Works Section */}
       <section
         id="how-it-works"
+        className="landing-section"
         style={{
           padding: '120px 40px',
           backgroundColor: 'var(--bg)',
@@ -372,6 +481,7 @@ export default function Page() {
         </h2>
 
         <div
+          className="steps-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',
@@ -600,6 +710,7 @@ export default function Page() {
 
       {/* Features Section */}
       <section
+        className="landing-section"
         style={{
           padding: '120px 40px',
           backgroundColor: 'var(--bg)',
@@ -620,6 +731,7 @@ export default function Page() {
 
         {/* Full-width feature */}
         <div
+          className="features-split-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
@@ -752,6 +864,7 @@ export default function Page() {
 
         {/* 2-column feature grid */}
         <div
+          className="features-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
@@ -834,6 +947,7 @@ export default function Page() {
 
       {/* CTA Banner */}
       <section
+        className="landing-section"
         style={{
           padding: '120px 40px',
           backgroundColor: 'var(--bg)',
@@ -841,6 +955,7 @@ export default function Page() {
         }}
       >
         <h2
+          className="cta-title"
           style={{
             fontSize: '64px',
             fontWeight: 700,
@@ -889,6 +1004,7 @@ export default function Page() {
 
       {/* Footer */}
       <footer
+        className="landing-footer"
         style={{
           borderTop: '1px solid var(--border)',
           padding: '40px',
@@ -898,7 +1014,7 @@ export default function Page() {
           alignItems: 'center',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="landing-footer-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Bookmark size={16} color="var(--accent)" />
             <span
@@ -922,7 +1038,7 @@ export default function Page() {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="landing-footer-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <a
             href="https://github.com/Dev-43/VisMark"
             target="_blank"

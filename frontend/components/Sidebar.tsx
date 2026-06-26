@@ -357,7 +357,7 @@ export function Sidebar({
                     style={{
                       flex: 1,
                       padding: "6px 8px",
-                      fontSize: "12px",
+                      fontSize: "16px",
                       color: "var(--text)",
                       backgroundColor: "var(--surface)",
                       border: "1px solid var(--border)",

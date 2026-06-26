@@ -90,6 +90,7 @@ export default function LinkCard({
 
   return (
     <div
+      className="link-card-container"
       style={{
         backgroundColor: 'var(--surface)',
         border: '1px solid var(--border)',
@@ -330,112 +331,94 @@ export default function LinkCard({
         )}
       </div>
 
-      {/* HOVER ACTION BAR */}
-      {isHovering && (
-        <div
+      {/* HOVER/TOUCH ACTION BAR */}
+      <div
+        className="link-card-action-bar"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={handleOpenUrl}
           style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '48px',
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: '8px',
-            paddingRight: '12px',
-            zIndex: 20,
-            borderBottomLeftRadius: 'var(--radius-lg)',
-            borderBottomRightRadius: 'var(--radius-lg)',
-            animation: 'fadeIn 0.15s ease-out',
+            gap: '6px',
+            padding: '6px 12px',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            color: 'white',
+            fontSize: '12px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background var(--transition)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
           }}
         >
-          <button
-            onClick={handleOpenUrl}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              color: 'white',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background var(--transition)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            }}
-          >
-            <ExternalLink size={14} />
-            Open
-          </button>
+          <ExternalLink size={14} />
+          Open
+        </button>
 
-          <button
-            onClick={handleCopyUrl}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              color: 'white',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background var(--transition)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            }}
-          >
-            <Copy size={14} />
-            {copied ? 'Copied' : 'Copy'}
-          </button>
+        <button
+          onClick={handleCopyUrl}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            color: 'white',
+            fontSize: '12px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background var(--transition)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+          }}
+        >
+          <Copy size={14} />
+          {copied ? 'Copied' : 'Copy'}
+        </button>
 
-          <button
-            onClick={handleDelete}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              backgroundColor: 'rgba(239, 68, 68, 0.2)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              color: '#f87171',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background var(--transition)',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.35)';
-              e.currentTarget.style.color = 'white';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
-              e.currentTarget.style.color = '#f87171';
-            }}
-          >
-            <Trash2 size={14} />
-            Delete
-          </button>
-        </div>
-      )}
+        <button
+          onClick={handleDelete}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            color: '#f87171',
+            fontSize: '12px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background var(--transition)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.35)';
+            e.currentTarget.style.color = 'white';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+            e.currentTarget.style.color = '#f87171';
+          }}
+        >
+          <Trash2 size={14} />
+          Delete
+        </button>
+      </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes shimmer {
@@ -460,6 +443,58 @@ export default function LinkCard({
           }
           to {
             opacity: 1;
+          }
+        }
+
+        .link-card-action-bar {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 48px;
+          background: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 8px;
+          padding-right: 12px;
+          z-index: 20;
+          border-bottom-left-radius: var(--radius-lg);
+          border-bottom-right-radius: var(--radius-lg);
+          opacity: 0;
+          transform: translateY(10px);
+          transition: all var(--transition);
+          pointer-events: none;
+        }
+
+        .link-card-container:hover .link-card-action-bar {
+          opacity: 1;
+          transform: translateY(0);
+          pointer-events: auto;
+        }
+
+        @media (max-width: 767px), (hover: none) {
+          .link-card-action-bar {
+            position: relative !important;
+            opacity: 1 !important;
+            transform: none !important;
+            pointer-events: auto !important;
+            background: var(--surface-2) !important;
+            border-top: 1px solid var(--border) !important;
+            border-bottom-left-radius: var(--radius-lg) !important;
+            border-bottom-right-radius: var(--radius-lg) !important;
+            backdrop-filter: none !important;
+          }
+          .link-card-action-bar button {
+            background-color: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text) !important;
+          }
+          .link-card-action-bar button:last-child {
+            background-color: rgba(239, 68, 68, 0.1) !important;
+            color: var(--error) !important;
+            border: 1px solid rgba(239, 68, 68, 0.2) !important;
           }
         }
       `}} />
