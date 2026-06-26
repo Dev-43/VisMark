@@ -8,7 +8,7 @@ export function CTABanner() {
       <section className="cta-banner" id="cta">
         <div className="cta-container">
           <h2 className="cta-heading">Start saving links visually.</h2>
-          <p className="cta-subheading">It's free. No credit card required.</p>
+          <p className="cta-subheading">It&apos;s free. No credit card required.</p>
           <Link href="/login" className="cta-btn">
             <svg
               className="google-icon"

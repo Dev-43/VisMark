@@ -26,8 +26,25 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VisMark",
-  description: "Visual bookmark manager",
+  metadataBase: new URL("https://vis-mark-two.vercel.app"),
+  title: "VisMark — Visual Bookmark Manager",
+  description:
+    "Save links as visual screenshot cards. Organize with folders, tags, and sharing.",
+  icons: {
+    icon: "/logo.png",
+  },
+  openGraph: {
+    title: "VisMark — Visual Bookmark Manager",
+    description:
+      "Save links as visual screenshot cards. Organize with folders, tags, and sharing.",
+    url: "https://vis-mark-two.vercel.app",
+    siteName: "VisMark",
+    images: [
+      {
+        url: "/og-image.png",
+      },
+    ],
+  },
 };
 
 const themeScript = `(function(){try{var s=localStorage.getItem('vismark-theme');var t=s==='light'||s==='dark'?s:(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;

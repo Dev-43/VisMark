@@ -1,4 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
+import type { Metadata } from "next"
+
 type Link = {
   id: string
   url: string
@@ -20,6 +22,22 @@ async function getPublicFolder(slug: string) {
   )
   if (!res.ok) return null
   return res.json() as Promise<{ folder: Folder; links: Link[] }>
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string }
+}): Promise<Metadata> {
+  const result = await getPublicFolder(params.slug)
+  if (!result) {
+    return {
+      title: "Folder Not Found — VisMark",
+    }
+  }
+  return {
+    title: `${result.folder.name} — Shared on VisMark`,
+  }
 }
 
 export default async function PublicFolderPage({

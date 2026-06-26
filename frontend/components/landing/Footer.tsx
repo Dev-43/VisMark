@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Bookmark } from "lucide-react";
 
 interface GithubProps extends React.SVGProps<SVGSVGElement> {
   size?: number | string;
@@ -35,7 +36,11 @@ export function Footer() {
             {/* Left: Logo & Tagline */}
             <div className="footer-left">
               <Link href="/" className="footer-logo">
-                <span style={{ fontSize: "20px" }} aria-hidden>🔖</span>
+                <Bookmark
+                  size={20}
+                  style={{ color: "var(--accent)", flexShrink: 0 }}
+                  aria-hidden
+                />
                 <span>VisMark</span>
               </Link>
               <span className="footer-tagline">A visual bookmark manager</span>

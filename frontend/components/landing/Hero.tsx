@@ -10,9 +10,9 @@ export default function Page() {
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', src: '/screenshots/dashboard.png', icon: Layout },
-    { id: 'demo', label: 'Interactive Demo', src: '/screenshots/demo.gif', icon: Play },
-    { id: 'folders', label: 'Folder View', src: '/screenshots/folder-view.png', icon: Folder },
+    { id: 'dashboard' as const, label: 'Dashboard', src: '/screenshots/dashboard.png', icon: Layout },
+    { id: 'demo' as const, label: 'Interactive Demo', src: '/screenshots/demo.gif', icon: Play },
+    { id: 'folders' as const, label: 'Folder View', src: '/screenshots/folder-view.png', icon: Folder },
   ];
 
   const scrollToSection = (sectionId: string) => {
@@ -153,7 +153,7 @@ export default function Page() {
                     return (
                       <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
+                        onClick={() => setActiveTab(tab.id)}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
                           isActive 
                             ? 'shadow-sm' 
@@ -181,6 +181,7 @@ export default function Page() {
                   if (!isCurrent && !isLoaded) return null;
                   
                   return (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       key={tab.id}
                       src={tab.src}
@@ -191,7 +192,7 @@ export default function Page() {
                       onLoad={() => {
                         setLoadedImages(prev => ({ ...prev, [tab.id]: true }));
                       }}
-                      onError={(e) => {
+                      onError={() => {
                         console.error(`Failed to load preview image: ${tab.src}`);
                       }}
                     />

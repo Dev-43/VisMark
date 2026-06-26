@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Bookmark } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function Navbar() {
@@ -65,7 +66,11 @@ export function Navbar() {
               color: "var(--text)",
             }}
           >
-            <span style={{ fontSize: "22px" }} aria-hidden>🔖</span>
+            <Bookmark
+              size={22}
+              style={{ color: "var(--accent)", flexShrink: 0 }}
+              aria-hidden
+            />
             <span className="font-display">VisMark</span>
           </Link>
 

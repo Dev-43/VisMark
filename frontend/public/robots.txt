@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /share/
+Disallow: /dashboard/
+Disallow: /api/
+
+Sitemap: https://vis-mark-two.vercel.app/sitemap.xml
