@@ -2,7 +2,8 @@ import express from 'express';
 import { nanoid } from 'nanoid';
 import { createClient } from '@supabase/supabase-js';
 
-const router = express.Router();
+const shareRouter = express.Router();
+const publicRouter = express.Router();
 
 function getSupabase() {
   return createClient(
@@ -11,7 +12,7 @@ function getSupabase() {
   );
 }
 
-router.patch('/:id/share', async (req, res) => {
+shareRouter.patch('/:id/share', async (req, res) => {
   const { id } = req.params;         // folder UUID from URL
   const userId = req.user.id;        // set by auth middleware
   const { enable } = req.body;       // true = make public, false = make private
@@ -47,7 +48,7 @@ router.patch('/:id/share', async (req, res) => {
   });
 });
 
-router.get('/public/:slug', async (req, res) => {
+publicRouter.get('/:slug', async (req, res) => {
   const { slug } = req.params;
 
   // Fetch the folder by its public slug
@@ -74,5 +75,4 @@ router.get('/public/:slug', async (req, res) => {
   res.json({ folder, links });
 });
 
-// bottom of file
-export default router;
+export { shareRouter, publicRouter };

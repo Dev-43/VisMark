@@ -65,6 +65,31 @@ router.delete('/:tagId', async (req, res) => {
 // POST /api/tags/:tagId/links/:linkId  — attach tag to a link
 router.post('/:tagId/links/:linkId', async (req, res) => {
   const { tagId, linkId } = req.params;
+  const userId = req.user.id;
+
+  // Check tag ownership
+  const { data: tag, error: tagError } = await getSupabase()
+    .from('tags')
+    .select('id')
+    .eq('id', tagId)
+    .eq('user_id', userId)
+    .single();
+
+  if (tagError || !tag) {
+    return res.status(403).json({ error: 'Not found or access denied' });
+  }
+
+  // Check link ownership
+  const { data: link, error: linkError } = await getSupabase()
+    .from('links')
+    .select('id')
+    .eq('id', linkId)
+    .eq('user_id', userId)
+    .single();
+
+  if (linkError || !link) {
+    return res.status(403).json({ error: 'Not found or access denied' });
+  }
 
   const { error } = await getSupabase().from('link_tags')
     .insert({ tag_id: tagId, link_id: linkId });
@@ -82,6 +107,31 @@ router.post('/:tagId/links/:linkId', async (req, res) => {
 // DELETE /api/tags/:tagId/links/:linkId  — remove tag from a link
 router.delete('/:tagId/links/:linkId', async (req, res) => {
   const { tagId, linkId } = req.params;
+  const userId = req.user.id;
+
+  // Check tag ownership
+  const { data: tag, error: tagError } = await getSupabase()
+    .from('tags')
+    .select('id')
+    .eq('id', tagId)
+    .eq('user_id', userId)
+    .single();
+
+  if (tagError || !tag) {
+    return res.status(403).json({ error: 'Not found or access denied' });
+  }
+
+  // Check link ownership
+  const { data: link, error: linkError } = await getSupabase()
+    .from('links')
+    .select('id')
+    .eq('id', linkId)
+    .eq('user_id', userId)
+    .single();
+
+  if (linkError || !link) {
+    return res.status(403).json({ error: 'Not found or access denied' });
+  }
 
   const { error } = await getSupabase().from('link_tags')
     .delete()

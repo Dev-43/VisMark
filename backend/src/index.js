@@ -10,7 +10,7 @@ import snapshotRoute from './routes/snapshot.js'
 import searchRouter from './routes/search.js'
 import './services/worker.js'
 import tagsRouter from './routes/tags.js'
-import shareRouter from './routes/share.js'
+import { shareRouter, publicRouter } from './routes/share.js'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -43,7 +43,7 @@ app.use('/api/snapshot', authMiddleware, snapshotRoute)
 app.use('/api/search', authMiddleware, searchRouter)
 app.use('/api/tags', authMiddleware, tagsRouter)
 app.use('/api/folders', authMiddleware, shareRouter)
-app.use('/api', shareRouter) // public share endpoints — unauthenticated
+app.use('/api/public', publicRouter) // public share endpoints — unauthenticated
 
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`)

@@ -42,6 +42,18 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'folder_id and url are required' });
   }
 
+  // Verify folder ownership before creating link
+  const { data: folder, error: folderError } = await getSupabase()
+    .from('folders')
+    .select('id')
+    .eq('id', folder_id)
+    .eq('user_id', user_id)
+    .single();
+
+  if (folderError || !folder) {
+    return res.status(403).json({ error: 'Folder not found or access denied' });
+  }
+
   const { data, error } = await getSupabase()
     .from('links')
     .insert([{
