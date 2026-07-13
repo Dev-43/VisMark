@@ -14,10 +14,11 @@ import { shareRouter, publicRouter } from './routes/share.js'
 
 const app = express()
 const PORT = process.env.PORT || 4000
+const url = process.env.FRONTEND_URL
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://vis-mark-two.vercel.app" // update once you have your real Vercel URL
+  url
 ]
 
 app.use(cors({
@@ -37,6 +38,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
+
 app.use('/api/folders', authMiddleware, folderRoutes)
 app.use('/api/links', authMiddleware, linksRouter)
 app.use('/api/snapshot', authMiddleware, snapshotRoute)
@@ -44,6 +46,13 @@ app.use('/api/search', authMiddleware, searchRouter)
 app.use('/api/tags', authMiddleware, tagsRouter)
 app.use('/api/folders', authMiddleware, shareRouter)
 app.use('/api/public', publicRouter) // public share endpoints — unauthenticated
+
+app.use((err, req, res, next) => {
+    if (err.message === "Not allowed by CORS") {
+      return res.status(403).json({ error: "CORS: origin not allowed" })
+    }
+    next(err)
+  })
 
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`)
