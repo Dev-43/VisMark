@@ -4,7 +4,8 @@ dotenv.config()
 import { Worker } from 'bullmq'
 import Redis from 'ioredis'
 import { createClient } from '@supabase/supabase-js'
-import { takeScreenshot } from './puppeteer.js'
+import { takeScreenshot as takePlaywrightScreenshot } from './playwrightSnapshot.js'
+import { takeScreenshot as takePuppeteerScreenshot } from './puppeteer.js'
 import { scrapeOGData } from './ogScraper.js'
 
 const supabase = createClient(
@@ -27,8 +28,9 @@ const worker = new Worker(
     const { linkId, url } = job.data
     console.log(`Processing job for link ${linkId}: ${url}`)
 
+    let playwrightFailedNonRecoverable = false;
     try {
-      const { screenshotUrl, title, description, faviconUrl } = await takeScreenshot(url, linkId)
+      const { screenshotUrl, title, description, faviconUrl } = await takePlaywrightScreenshot(url, linkId)
       await updateLink(linkId, {
         screenshot_url: screenshotUrl,
         title,
@@ -36,10 +38,31 @@ const worker = new Worker(
         favicon_url: faviconUrl,
         snapshot_status: 'done',
       })
-      console.log(`✅ Puppeteer succeeded for ${url}`)
+      console.log(`✅ Playwright succeeded for ${url}`)
       return
-    } catch (puppeteerErr) {
-      console.warn(`⚠️ Puppeteer failed for ${url}:`, puppeteerErr.message)
+    } catch (playwrightErr) {
+      console.warn(`⚠️ Playwright failed for ${url}:`, playwrightErr.message)
+      if (playwrightErr.isNonRecoverable) {
+        console.log(`⚠️ Playwright error is non-recoverable. Skipping Puppeteer fallback for ${url}`)
+        playwrightFailedNonRecoverable = true
+      }
+    }
+
+    if (!playwrightFailedNonRecoverable) {
+      try {
+        const { screenshotUrl, title, description, faviconUrl } = await takePuppeteerScreenshot(url, linkId)
+        await updateLink(linkId, {
+          screenshot_url: screenshotUrl,
+          title,
+          description,
+          favicon_url: faviconUrl,
+          snapshot_status: 'done',
+        })
+        console.log(`✅ Puppeteer succeeded for ${url}`)
+        return
+      } catch (puppeteerErr) {
+        console.warn(`⚠️ Puppeteer failed for ${url}:`, puppeteerErr.message)
+      }
     }
 
     try {

@@ -11,6 +11,7 @@ import searchRouter from './routes/search.js'
 import './services/worker.js'
 import tagsRouter from './routes/tags.js'
 import { shareRouter, publicRouter } from './routes/share.js'
+import testSnapshotRouter from './routes/testSnapshot.js';
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -38,7 +39,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
-
+app.use('/api', testSnapshotRouter);
 app.use('/api/folders', authMiddleware, folderRoutes)
 app.use('/api/links', authMiddleware, linksRouter)
 app.use('/api/snapshot', authMiddleware, snapshotRoute)

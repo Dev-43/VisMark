@@ -21,6 +21,7 @@
     "express-rate-limit": "^8.5.2",
     "ioredis": "^5.11.1",
     "nanoid": "^5.1.11",
+    "playwright": "^1.61.1",
     "puppeteer": "^25.1.0",
     "rate-limit-redis": "^5.0.0"
   },
