@@ -24,6 +24,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [folders, setFolders] = useState<SidebarFolder[]>([]);
   const [pageTitle, setPageTitle] = useState("Dashboard");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   const currentFolderId = useMemo(() => {
     const match = pathname.match(/^\/dashboard\/folder\/([^/]+)/);
@@ -56,6 +57,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         data: { user },
       } = await supabase.auth.getUser();
       setUserEmail(user?.email ?? "");
+
+      try {
+        const profileRes = await apiFetch("/api/profiles/me");
+        if (profileRes.status === 404) {
+          window.location.href = "/onboarding";
+          return;
+        }
+
+        if (profileRes.status === 403) {
+          const body = await profileRes.json().catch(() => ({}));
+          if (body.code === "PROFILE_REQUIRED") {
+            window.location.href = "/onboarding";
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Profile check error:", err);
+      }
+
+      setIsLoadingProfile(false);
       await fetchFolders();
     }
 
@@ -152,6 +173,42 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     onNewFolder: handleNewFolder,
     onNavigate: () => setDrawerOpen(false),
   };
+
+  if (isLoadingProfile) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          minHeight: "100vh",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--bg)",
+          color: "var(--text-muted)",
+          fontFamily: "sans-serif",
+          fontSize: "14px",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              border: "2px solid var(--border)",
+              borderTopColor: "var(--accent)",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          <span>Checking account...</span>
+          <style>{`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
