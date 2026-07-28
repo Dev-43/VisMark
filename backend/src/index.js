@@ -6,12 +6,14 @@ import cors from 'cors'
 import folderRoutes from './routes/folders.js'
 import linksRouter from './routes/links.js'
 import authMiddleware from './middleware/auth.js'
+import requireProfile from './middleware/profile.js'
 import snapshotRoute from './routes/snapshot.js'
 import searchRouter from './routes/search.js'
 import './services/worker.js'
 import tagsRouter from './routes/tags.js'
 import { shareRouter, publicRouter } from './routes/share.js'
 import testSnapshotRouter from './routes/testSnapshot.js';
+import profilesRouter from './routes/profiles.js'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -40,12 +42,13 @@ app.get('/health', (req, res) => {
 })
 
 app.use('/api', testSnapshotRouter);
-app.use('/api/folders', authMiddleware, folderRoutes)
-app.use('/api/links', authMiddleware, linksRouter)
-app.use('/api/snapshot', authMiddleware, snapshotRoute)
-app.use('/api/search', authMiddleware, searchRouter)
-app.use('/api/tags', authMiddleware, tagsRouter)
-app.use('/api/folders', authMiddleware, shareRouter)
+app.use('/api/profiles', authMiddleware, profilesRouter)
+app.use('/api/folders', authMiddleware, requireProfile, folderRoutes)
+app.use('/api/links', authMiddleware, requireProfile, linksRouter)
+app.use('/api/snapshot', authMiddleware, requireProfile, snapshotRoute)
+app.use('/api/search', authMiddleware, requireProfile, searchRouter)
+app.use('/api/tags', authMiddleware, requireProfile, tagsRouter)
+app.use('/api/folders', authMiddleware, requireProfile, shareRouter)
 app.use('/api/public', publicRouter) // public share endpoints — unauthenticated
 
 app.use((err, req, res, next) => {
