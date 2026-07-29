@@ -21,3 +21,19 @@ export const snapshotRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const inviteRateLimiter = rateLimit({
+  windowMs: 3600000, // 1 hour
+  max: 30, // max 30 invites per user per hour
+  keyGenerator: (req) => req.user.id,
+  store: new RedisStore({
+    sendCommand: (...args) => redis.call(...args),
+  }),
+  handler: (req, res) => {
+    res.status(429).json({
+      error: 'Too many invite requests. Please try again in an hour.',
+    });
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

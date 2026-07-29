@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/apiFetch';
 import LinkCard from '@/components/LinkCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import InviteModal from '@/components/InviteModal';
 import { useTags } from '@/lib/hooks/useTags';
 import { useToast } from '@/components/ToastProvider';
 
@@ -32,6 +33,7 @@ interface FolderData {
   name: string;
   is_public: boolean;
   public_slug: string | null;
+  role?: 'owner' | 'editor' | 'viewer';
 }
 
 type SortOption = 'newest' | 'oldest' | 'alpha';
@@ -47,6 +49,7 @@ export default function FolderPage() {
   const [newUrl, setNewUrl] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
 
   const { tags: allTags, attachTag, removeTag } = useTags();
 
@@ -384,6 +387,31 @@ export default function FolderPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Invite Button (Owner only) */}
+            {folder?.role === 'owner' && (
+              <button
+                onClick={() => setIsInviteOpen(true)}
+                style={{
+                  backgroundColor: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--border)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--surface-2)';
+                }}
+              >
+                Invite Members
+              </button>
+            )}
+
             {/* Share Button / Badge */}
             {folder?.is_public ? (
               <button
@@ -640,6 +668,13 @@ export default function FolderPage() {
         message="Delete this link? This cannot be undone."
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTargetId(null)}
+      />
+
+      {/* Invite Modal */}
+      <InviteModal
+        isOpen={isInviteOpen}
+        onClose={() => setIsInviteOpen(false)}
+        folderId={id}
       />
     </>
   );

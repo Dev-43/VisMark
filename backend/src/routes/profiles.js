@@ -103,4 +103,30 @@ router.post('/', async (req, res) => {
   res.status(201).json(profile)
 })
 
+// Check if username exists (for invite lookup)
+router.get('/exists', async (req, res) => {
+  const supabase = getSupabase()
+  const username = (req.query.username || '').trim().toLowerCase()
+
+  if (!username) {
+    return res.status(400).json({ error: 'Username query parameter is required' })
+  }
+
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('id, username')
+    .eq('username', username)
+    .maybeSingle()
+
+  if (error) {
+    return res.status(500).json({ error: error.message })
+  }
+
+  if (!profile) {
+    return res.json({ exists: false })
+  }
+
+  res.json({ exists: true, profile })
+})
+
 export default router

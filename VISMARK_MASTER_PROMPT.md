@@ -294,8 +294,8 @@ alter table links add column personal_description text;
 ### Build order (vertical slices, same pattern as Features 1–10)
 ```
 [x] 11.1  — profiles table + mandatory username-selection onboarding step (DB → backend check → frontend gate)
-[ ] 11.2  — folder_members table + migrate existing folders (owner row per folder) + update folder read/list routes to join through membership
-[ ] 11.3  — folder_invites table + invite-by-username route + username-exists check (frontend + backend)
+[x] 11.2  — folder_members table + migrate existing folders (owner row per folder) + update folder read/list routes to join through membership
+[x] 11.3  — folder_invites table + invite-by-username route + username-exists check (frontend + backend)
 [ ] 11.4  — notifications table + polling endpoint + accept/decline routes + bell/panel UI
 [ ] 11.5  — editor/viewer permission enforcement across all link routes (add/delete/edit)
 [ ] 11.6  — folder_activity table + logging calls wired into every mutation from 11.2–11.9
@@ -335,10 +335,9 @@ Starting with this feature, the codebase is large enough that agent-based buildi
 - **Diffs/agent output should be reviewed before accepting**, same scrutiny as the migration safety checklist above — an agent producing working-looking code isn't the same as it being safe or scoped correctly.
 
 ### Mandatory agent workflow per sub-feature
-- **One git branch per sub-feature** (e.g. `feature/11.1-profiles`, `feature/11.2-folder-members`), created by the agent before starting work on that sub-feature.
+- **Active Branch**: All code changes must be committed and pushed directly to the `version2` branch only. Do not create new feature branches or commit to `main`.
 - **Before pushing, the agent must run and pass verification**: lint (`npm run lint` or equivalent), build check, and any other existing project checks — not just "the feature appears to work."
-- **Only after verification passes** does the agent push the branch. Branch stays separate from `main` until you've done the Thunder Client + click-through confirmation yourself.
-- This gives clean, isolated rollback per sub-feature if something's wrong — matches the "each sub-feature is a standalone slice" principle already established.
+- **Only after verification passes** does the agent push to `version2`.
 
 ### How to start each sub-feature going forward
 This document is written to be handed directly to the coding agent as the only context needed — no separate "fullshot" prompt has to be written per session. To start a sub-feature, tell the agent: **"Read VISMARK_MASTER_PROMPT.md, build Feature [X.X]."** The agent should have everything it needs — schema, permission model, table scope, branch/verification requirements — from this file. In chat, Claude's role per sub-feature is: explain the concept first, then after the agent's build is pushed, walk through the Thunder Client / click-through steps to confirm it actually works.
@@ -379,18 +378,18 @@ These will be explained as they appear in the code. Listed here so you know what
 
 ## 📍 Current Status
 
-**Last completed feature:** Feature 10 — Final Deployment (Vercel + Railway); project launched publicly.
+**Last completed feature:** Feature 11.3 — folder_invites table, invite-by-username route, and username-exists check.
 
 **Post-launch work completed:**
 - 8-phase frontend redesign
 - Public launch across Twitter/X, LinkedIn, Reddit
 - Security audit (fixed unauthenticated share route, 2× IDOR bugs, snapshot-trigger IDOR, SSRF risk in Puppeteer endpoint)
 - **Dual-engine screenshot upgrade:** Added Playwright as primary screenshot engine with existing Puppeteer service retained as fallback (see updated "Screenshot Service Logic" above). Tested and confirmed working locally via Thunder Client, including the full fallback chain.
+- **Feature 11.1, 11.2 & 11.3**: Completed profiles table setup with username onboarding step, `folder_members` table creation, data backfill, and folders/links/share backend route updates, plus `folder_invites` table, invite endpoints, and UI integration.
 
-**Currently working on:** Redeployment — Railway free trial expired, backend/Redis currently down. Evaluating Render (web service) + Upstash (Redis) as the free-tier replacement, since Render's free tier alone may be too memory-constrained (512 MB RAM) to reliably run two Chromium-based engines simultaneously. Deployment is on hold pending this decision.
+**Currently working on:** Feature 11.4 — notifications table + polling endpoint + accept/decline routes + bell/panel UI.
 
 **Blockers / notes:**
-- Backend is currently offline (Railway trial expired) — app is not live until redeployed.
+- Backend is currently offline in production (Railway trial expired) — app is not live until redeployed.
 - Next.js major version upgrade (14.x → 16.x) still deferred from pre-launch audit, not yet started.
 - Known minor bug: Supabase Storage screenshot URLs currently resolve with a double slash (`public//screenshots/...`) — appears cosmetic but not yet confirmed harmless in all cases.
-- **Feature 11 (Collaboration Folders) is fully spec'd but not started** — see section above for schema, permission model, and v1/v2 split. Should begin only after backend redeployment is resolved.
