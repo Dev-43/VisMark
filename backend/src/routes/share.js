@@ -17,15 +17,25 @@ shareRouter.patch('/:id/share', async (req, res) => {
   const userId = req.user.id;        // set by auth middleware
   const { enable } = req.body;       // true = make public, false = make private
 
-  // Security check — confirm this folder belongs to the requesting user
+  // Security check — confirm user is the OWNER of this folder in folder_members
+  const { data: membership, error: memberError } = await getSupabase()
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', id)
+    .eq('user_id', userId)
+    .single();
+
+  if (memberError || !membership) return res.status(404).json({ error: 'Folder not found or access denied' });
+  if (membership.role !== 'owner') return res.status(403).json({ error: 'Forbidden: Only folder owners can toggle public sharing' });
+
+  // Fetch current folder details for public_slug check
   const { data: folder, error: fetchError } = await getSupabase()
     .from('folders')
-    .select('id, user_id, public_slug')
+    .select('public_slug')
     .eq('id', id)
     .single();
 
   if (fetchError || !folder) return res.status(404).json({ error: 'Folder not found' });
-  if (folder.user_id !== userId) return res.status(403).json({ error: 'Forbidden' });
 
   // If enabling: generate a slug (or reuse existing one)
   // If disabling: clear the slug
