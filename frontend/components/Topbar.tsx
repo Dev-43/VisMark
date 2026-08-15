@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, Search } from "lucide-react";
+import { Menu, Search, Bell, Check, X } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface TopbarProps {
   pageTitle: string;
@@ -35,6 +36,16 @@ function UserAvatar({ email }: { email: string }) {
   );
 }
 
+interface NotificationItem {
+  id: string;
+  type: string;
+  status: string;
+  created_at: string;
+  folder: { id: string; name: string } | null;
+  role: string;
+  sender: string;
+}
+
 export function Topbar({ pageTitle, userEmail, onMenuClick }: TopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -42,6 +53,80 @@ export function Topbar({ pageTitle, userEmail, onMenuClick }: TopbarProps) {
   const [focused, setFocused] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [actioningId, setActioningId] = useState<string | null>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/notifications");
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleAccept = async (id: string) => {
+    setActioningId(id);
+    try {
+      const res = await apiFetch(`/api/notifications/${id}/accept`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+        window.dispatchEvent(new Event("folders-updated"));
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to accept invite");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred");
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const handleDecline = async (id: string) => {
+    setActioningId(id);
+    try {
+      const res = await apiFetch(`/api/notifications/${id}/decline`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to decline invite");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred");
+    } finally {
+      setActioningId(null);
+    }
+  };
 
   // Sync input value with search query parameter in URL
   useEffect(() => {
@@ -309,6 +394,192 @@ export function Topbar({ pageTitle, userEmail, onMenuClick }: TopbarProps) {
             >
               <Search size={20} aria-hidden />
             </button>
+
+            {/* Notifications Dropdown */}
+            <div ref={notifRef} style={{ position: "relative" }}>
+              <button
+                type="button"
+                aria-label="Notifications"
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 36,
+                  height: 36,
+                  border: "none",
+                  borderRadius: "var(--radius-md)",
+                  background: isNotifOpen ? "var(--surface-2)" : "transparent",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  position: "relative"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--text)";
+                  e.currentTarget.style.background = "var(--surface-2)";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isNotifOpen) {
+                    e.currentTarget.style.color = "var(--text-muted)";
+                    e.currentTarget.style.background = "transparent";
+                  }
+                }}
+              >
+                <Bell size={20} aria-hidden />
+                {notifications.length > 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      width: 16,
+                      height: 16,
+                      background: "var(--error)",
+                      color: "#ffffff",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "2px solid var(--surface)"
+                    }}
+                  >
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              {isNotifOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: "100%",
+                    marginTop: 8,
+                    width: 300,
+                    maxWidth: "calc(100vw - 32px)",
+                    maxHeight: 400,
+                    overflowY: "auto",
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-md)",
+                    boxShadow: "var(--shadow-card)",
+                    padding: "var(--space-3)",
+                    zIndex: 100,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "var(--space-2)"
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--text)",
+                      paddingBottom: 8,
+                      borderBottom: "1px solid var(--border)",
+                      marginBottom: 4,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
+                    }}
+                  >
+                    <span>Notifications</span>
+                    {notifications.length > 0 && (
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>
+                        {notifications.length} pending
+                      </span>
+                    )}
+                  </div>
+
+                  {notifications.length === 0 ? (
+                    <div
+                      style={{
+                        padding: "var(--space-4) 0",
+                        textAlign: "center",
+                        color: "var(--text-muted)",
+                        fontSize: 13
+                      }}
+                    >
+                      No notifications
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                      {notifications.map((notif) => (
+                        <div
+                          key={notif.id}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                            padding: "8px",
+                            borderRadius: "var(--radius-sm)",
+                            background: "var(--bg)",
+                            border: "1px solid var(--border)"
+                          }}
+                        >
+                          <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.4 }}>
+                            <strong>@{notif.sender}</strong> invited you to join <strong>{notif.folder?.name || "a folder"}</strong> as <strong>{notif.role}</strong>.
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              type="button"
+                              disabled={actioningId !== null}
+                              onClick={() => handleAccept(notif.id)}
+                              style={{
+                                flex: 1,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 4,
+                                padding: "6px var(--space-2)",
+                                background: "var(--accent)",
+                                color: "#ffffff",
+                                border: "none",
+                                borderRadius: "var(--radius-sm)",
+                                fontSize: 12,
+                                fontWeight: 500,
+                                cursor: "pointer",
+                                opacity: actioningId !== null ? 0.6 : 1
+                              }}
+                            >
+                              <Check size={12} />
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actioningId !== null}
+                              onClick={() => handleDecline(notif.id)}
+                              style={{
+                                flex: 1,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 4,
+                                padding: "6px var(--space-2)",
+                                background: "var(--surface)",
+                                color: "var(--text-muted)",
+                                border: "1px solid var(--border)",
+                                borderRadius: "var(--radius-sm)",
+                                fontSize: 12,
+                                fontWeight: 500,
+                                cursor: "pointer",
+                                opacity: actioningId !== null ? 0.6 : 1
+                              }}
+                            >
+                              <X size={12} />
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <ThemeToggle />
             <UserAvatar email={userEmail} />
           </div>

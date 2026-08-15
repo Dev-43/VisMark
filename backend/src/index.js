@@ -14,6 +14,7 @@ import tagsRouter from './routes/tags.js'
 import { shareRouter, publicRouter } from './routes/share.js'
 import testSnapshotRouter from './routes/testSnapshot.js';
 import profilesRouter from './routes/profiles.js'
+import notificationsRouter from './routes/notifications.js'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -49,6 +50,7 @@ app.use('/api/snapshot', authMiddleware, requireProfile, snapshotRoute)
 app.use('/api/search', authMiddleware, requireProfile, searchRouter)
 app.use('/api/tags', authMiddleware, requireProfile, tagsRouter)
 app.use('/api/folders', authMiddleware, requireProfile, shareRouter)
+app.use('/api/notifications', authMiddleware, requireProfile, notificationsRouter)
 app.use('/api/public', publicRouter) // public share endpoints — unauthenticated
 
 app.use((err, req, res, next) => {

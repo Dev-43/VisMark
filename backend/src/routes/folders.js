@@ -256,6 +256,23 @@ router.post('/:id/invites', inviteRateLimiter, async (req, res) => {
     return res.status(500).json({ error: inviteCreateError.message })
   }
 
+  // 7. Create notification for the invited user
+  const { error: notificationError } = await supabase
+    .from('notifications')
+    .insert({
+      recipient_id: targetProfile.id,
+      type: 'folder_invite',
+      folder_id: id,
+      invite_id: newInvite.id,
+      status: 'pending'
+    })
+
+  if (notificationError) {
+    // Cleanup the created invite if notification creation fails
+    await supabase.from('folder_invites').delete().eq('id', newInvite.id)
+    return res.status(500).json({ error: 'Failed to create invite notification: ' + notificationError.message })
+  }
+
   res.status(201).json(newInvite)
 })
 

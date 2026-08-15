@@ -296,7 +296,7 @@ alter table links add column personal_description text;
 [x] 11.1  — profiles table + mandatory username-selection onboarding step (DB → backend check → frontend gate)
 [x] 11.2  — folder_members table + migrate existing folders (owner row per folder) + update folder read/list routes to join through membership
 [x] 11.3  — folder_invites table + invite-by-username route + username-exists check (frontend + backend)
-[ ] 11.4  — notifications table + polling endpoint + accept/decline routes + bell/panel UI
+[x] 11.4  — notifications table + polling endpoint + accept/decline routes + bell/panel UI
 [ ] 11.5  — editor/viewer permission enforcement across all link routes (add/delete/edit)
 [ ] 11.6  — folder_activity table + logging calls wired into every mutation from 11.2–11.9
 [ ] 11.7  — leave / removal flow + own-links-only copy option (frontend prompt + backend duplication routine)
@@ -378,16 +378,16 @@ These will be explained as they appear in the code. Listed here so you know what
 
 ## 📍 Current Status
 
-**Last completed feature:** Feature 11.3 — folder_invites table, invite-by-username route, and username-exists check.
+**Last completed feature:** Feature 11.4 — notifications table + polling endpoint + accept/decline routes + bell/panel UI.
 
 **Post-launch work completed:**
 - 8-phase frontend redesign
 - Public launch across Twitter/X, LinkedIn, Reddit
 - Security audit (fixed unauthenticated share route, 2× IDOR bugs, snapshot-trigger IDOR, SSRF risk in Puppeteer endpoint)
 - **Dual-engine screenshot upgrade:** Added Playwright as primary screenshot engine with existing Puppeteer service retained as fallback (see updated "Screenshot Service Logic" above). Tested and confirmed working locally via Thunder Client, including the full fallback chain.
-- **Feature 11.1, 11.2 & 11.3**: Completed profiles table setup with username onboarding step, `folder_members` table creation, data backfill, and folders/links/share backend route updates, plus `folder_invites` table, invite endpoints, and UI integration.
+- **Feature 11.1, 11.2, 11.3 & 11.4**: Completed profiles setup, `folder_members` table creation, folder/link/share membership route migration, `folder_invites` table & invite creation, along with `notifications` table, accept/decline backend routes, and polling notifications bell panel UI. Added logged-in user's username display in the sidebar footer section alongside their email.
 
-**Currently working on:** Feature 11.4 — notifications table + polling endpoint + accept/decline routes + bell/panel UI.
+**Currently working on:** Feature 11.5 — editor/viewer permission enforcement across all link routes (add/delete/edit).
 
 **Blockers / notes:**
 - Backend is currently offline in production (Railway trial expired) — app is not live until redeployed.

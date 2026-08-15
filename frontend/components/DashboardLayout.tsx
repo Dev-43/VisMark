@@ -21,6 +21,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const supabase = useMemo(() => createClient(), []);
 
   const [userEmail, setUserEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [folders, setFolders] = useState<SidebarFolder[]>([]);
   const [pageTitle, setPageTitle] = useState("Dashboard");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -71,6 +72,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             window.location.href = "/onboarding";
             return;
           }
+        }
+
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          setUsername(profile.username || "");
         }
       } catch (err) {
         console.error("Profile check error:", err);
@@ -169,6 +175,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     folders,
     currentFolderId,
     userEmail,
+    userUsername: username,
     onSignOut: handleSignOut,
     onNewFolder: handleNewFolder,
     onNavigate: () => setDrawerOpen(false),

@@ -16,13 +16,14 @@ interface SidebarProps {
   folders: SidebarFolder[];
   currentFolderId?: string;
   userEmail: string;
+  userUsername?: string;
   onSignOut: () => void;
   onNewFolder: () => void;
   onNavigate?: () => void;
 }
 
-function UserAvatar({ email }: { email: string }) {
-  const initial = email ? email.charAt(0).toUpperCase() : "?";
+function UserAvatar({ email, username }: { email: string; username?: string }) {
+  const initial = username ? username.charAt(0).toUpperCase() : (email ? email.charAt(0).toUpperCase() : "?");
 
   return (
     <span
@@ -49,6 +50,7 @@ export function Sidebar({
   folders,
   currentFolderId: propFolderId,
   userEmail,
+  userUsername,
   onSignOut,
   onNewFolder,
   onNavigate,
@@ -482,20 +484,37 @@ export function Sidebar({
             alignItems: "center",
             gap: "var(--space-2)",
             marginBottom: "var(--space-3)",
+            minWidth: 0,
           }}
         >
-          <UserAvatar email={userEmail} />
-          <span
-            style={{
-              fontSize: 13,
-              color: "var(--text)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {userEmail}
-          </span>
+          <UserAvatar email={userEmail} username={userUsername} />
+          <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
+            {userUsername && (
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--text)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                @{userUsername}
+              </span>
+            )}
+            <span
+              style={{
+                fontSize: 11,
+                color: "var(--text-muted)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {userEmail}
+            </span>
+          </div>
         </div>
 
         <button
