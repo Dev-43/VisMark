@@ -79,16 +79,30 @@ router.post('/:tagId/links/:linkId', async (req, res) => {
     return res.status(403).json({ error: 'Not found or access denied' });
   }
 
-  // Check link ownership
+  // Check folder membership and role for link
   const { data: link, error: linkError } = await getSupabase()
     .from('links')
-    .select('id')
+    .select('folder_id')
     .eq('id', linkId)
-    .eq('user_id', userId)
     .single();
 
   if (linkError || !link) {
-    return res.status(403).json({ error: 'Not found or access denied' });
+    return res.status(404).json({ error: 'Link not found' });
+  }
+
+  const { data: membership, error: memberError } = await getSupabase()
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', link.folder_id)
+    .eq('user_id', userId)
+    .single();
+
+  if (memberError || !membership) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  if (membership.role !== 'owner' && membership.role !== 'editor') {
+    return res.status(403).json({ error: 'Only owners and editors can modify tags on links' });
   }
 
   const { error } = await getSupabase().from('link_tags')
@@ -121,16 +135,30 @@ router.delete('/:tagId/links/:linkId', async (req, res) => {
     return res.status(403).json({ error: 'Not found or access denied' });
   }
 
-  // Check link ownership
+  // Check folder membership and role for link
   const { data: link, error: linkError } = await getSupabase()
     .from('links')
-    .select('id')
+    .select('folder_id')
     .eq('id', linkId)
-    .eq('user_id', userId)
     .single();
 
   if (linkError || !link) {
-    return res.status(403).json({ error: 'Not found or access denied' });
+    return res.status(404).json({ error: 'Link not found' });
+  }
+
+  const { data: membership, error: memberError } = await getSupabase()
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', link.folder_id)
+    .eq('user_id', userId)
+    .single();
+
+  if (memberError || !membership) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  if (membership.role !== 'owner' && membership.role !== 'editor') {
+    return res.status(403).json({ error: 'Only owners and editors can modify tags on links' });
   }
 
   const { error } = await getSupabase().from('link_tags')
@@ -147,16 +175,47 @@ router.get('/:tagId/links', async (req, res) => {
   const userId = req.user.id;
   const { tagId } = req.params;
 
-  const { data, error } = await getSupabase().from('links')
-    .select(`
-      *,
-      link_tags!inner(tag_id, tags(id, name))
-    `)
-    .eq('user_id', userId)
-    .eq('link_tags.tag_id', tagId);
+  try {
+    // 1. Fetch user's folder memberships to get folder IDs and roles
+    const { data: memberships, error: memberError } = await getSupabase()
+      .from('folder_members')
+      .select('folder_id, role')
+      .eq('user_id', userId);
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+    if (memberError) return res.status(500).json({ error: memberError.message });
+
+    const folderMap = {};
+    memberships.forEach(m => {
+      folderMap[m.folder_id] = m.role;
+    });
+    const folderIds = Object.keys(folderMap);
+
+    if (folderIds.length === 0) {
+      return res.json([]);
+    }
+
+    // 2. Fetch links that are in those folders and have the specified tag
+    const { data, error } = await getSupabase().from('links')
+      .select(`
+        *,
+        link_tags!inner(tag_id, tags(id, name))
+      `)
+      .in('folder_id', folderIds)
+      .eq('link_tags.tag_id', tagId);
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // 3. Attach folder role to each link
+    const linksWithRole = (data || []).map(link => ({
+      ...link,
+      role: folderMap[link.folder_id]
+    }));
+
+    res.json(linksWithRole);
+  } catch (err) {
+    console.error('Error fetching tagged links:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve tagged links' });
+  }
 });
 
 export default router;

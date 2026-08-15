@@ -23,6 +23,7 @@ export interface LinkCardProps {
   allTags?: Tag[];
   onAttachTag?: (tagId: string, linkId: string) => Promise<void>;
   onRemoveTag?: (tagId: string, linkId: string) => Promise<void>;
+  role?: 'owner' | 'editor' | 'viewer';
 }
 
 const TagChip = ({ name }: { name: string }) => {
@@ -57,7 +58,9 @@ export default function LinkCard({
   allTags,
   onAttachTag,
   onRemoveTag,
+  role = 'owner',
 }: LinkCardProps) {
+  const canEdit = role === 'owner' || role === 'editor';
   const [isHovering, setIsHovering] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -283,7 +286,7 @@ export default function LinkCard({
             {tags.map((tag) => (
               <TagChip key={tag.id} name={tag.name} />
             ))}
-            {allTags && onAttachTag && onRemoveTag && (
+            {canEdit && allTags && onAttachTag && onRemoveTag && (
               <TagPicker
                 linkId={id}
                 assignedTags={tags}
@@ -390,34 +393,36 @@ export default function LinkCard({
           {copied ? 'Copied' : 'Copy'}
         </button>
 
-        <button
-          onClick={handleDelete}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            backgroundColor: 'rgba(239, 68, 68, 0.2)',
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            color: '#f87171',
-            fontSize: '12px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'background var(--transition)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.35)';
-            e.currentTarget.style.color = 'white';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
-            e.currentTarget.style.color = '#f87171';
-          }}
-        >
-          <Trash2 size={14} />
-          Delete
-        </button>
+        {canEdit && (
+          <button
+            onClick={handleDelete}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              backgroundColor: 'rgba(239, 68, 68, 0.2)',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              color: '#f87171',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'background var(--transition)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.35)';
+              e.currentTarget.style.color = 'white';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+              e.currentTarget.style.color = '#f87171';
+            }}
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

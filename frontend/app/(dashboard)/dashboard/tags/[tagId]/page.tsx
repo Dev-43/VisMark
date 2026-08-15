@@ -20,6 +20,7 @@ interface RawLink {
   snapshot_status: 'pending' | 'done' | 'failed';
   link_tags?: { tag_id: string; tags: Tag }[];
   created_at: string;
+  role?: 'owner' | 'editor' | 'viewer';
 }
 
 type SortOption = 'newest' | 'oldest' | 'alpha';
@@ -381,6 +382,7 @@ export default function TagPage() {
                 allTags={allTags}
                 onAttachTag={handleAttachTag}
                 onRemoveTag={handleRemoveTag}
+                role={link.role}
               />
             ))}
           </div>

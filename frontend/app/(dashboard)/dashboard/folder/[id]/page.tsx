@@ -499,80 +499,82 @@ export default function FolderPage() {
         </div>
 
         {/* URL INPUT BAR */}
-        <div
-          style={{
-            position: 'sticky',
-            top: '-24px',
-            zIndex: 15,
-            backgroundColor: 'var(--bg)',
-            paddingTop: '24px',
-            paddingBottom: '16px',
-            marginBottom: '24px',
-            borderBottom: '1px solid var(--border)',
-          }}
-        >
-          <form
-            onSubmit={handleSave}
-            className="url-input-form"
+        {folder?.role !== 'viewer' && (
+          <div
             style={{
-              display: 'flex',
-              gap: '12px',
-              width: '100%',
+              position: 'sticky',
+              top: '-24px',
+              zIndex: 15,
+              backgroundColor: 'var(--bg)',
+              paddingTop: '24px',
+              paddingBottom: '16px',
+              marginBottom: '24px',
+              borderBottom: '1px solid var(--border)',
             }}
           >
-            <input
-              type="text"
-              placeholder="Paste a URL to save it..."
-              value={newUrl}
-              onChange={(e) => setNewUrl(e.target.value)}
-              disabled={loading || !folder}
+            <form
+              onSubmit={handleSave}
+              className="url-input-form"
               style={{
-                flex: 1,
-                padding: '12px 16px',
-                fontSize: '16px', // Prevents auto-zoom on iOS
-                color: 'var(--text)',
-                backgroundColor: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                outline: 'none',
-                fontFamily: 'var(--font-body)',
-                boxShadow: 'var(--shadow-card)',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--accent)';
-                e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent-subtle)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border)';
-                e.currentTarget.style.boxShadow = 'var(--shadow-card)';
-              }}
-            />
-            <button
-              type="submit"
-              disabled={loading || !folder || !newUrl.trim()}
-              style={{
-                padding: '12px 24px',
-                backgroundColor: 'var(--accent)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: newUrl.trim() ? 'pointer' : 'default',
-                fontFamily: 'var(--font-body)',
-                opacity: newUrl.trim() ? 1 : 0.6,
-              }}
-              onMouseEnter={(e) => {
-                if (newUrl.trim()) e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
-              }}
-              onMouseLeave={(e) => {
-                if (newUrl.trim()) e.currentTarget.style.backgroundColor = 'var(--accent)';
+                display: 'flex',
+                gap: '12px',
+                width: '100%',
               }}
             >
-              Save
-            </button>
-          </form>
-        </div>
+              <input
+                type="text"
+                placeholder="Paste a URL to save it..."
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+                disabled={loading || !folder}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  fontSize: '16px', // Prevents auto-zoom on iOS
+                  color: 'var(--text)',
+                  backgroundColor: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  outline: 'none',
+                  fontFamily: 'var(--font-body)',
+                  boxShadow: 'var(--shadow-card)',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent)';
+                  e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent-subtle)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-card)';
+                }}
+              />
+              <button
+                type="submit"
+                disabled={loading || !folder || !newUrl.trim()}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: 'var(--accent)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: newUrl.trim() ? 'pointer' : 'default',
+                  fontFamily: 'var(--font-body)',
+                  opacity: newUrl.trim() ? 1 : 0.6,
+                }}
+                onMouseEnter={(e) => {
+                  if (newUrl.trim()) e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
+                }}
+                onMouseLeave={(e) => {
+                  if (newUrl.trim()) e.currentTarget.style.backgroundColor = 'var(--accent)';
+                }}
+              >
+                Save
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* LINK GRID OR EMPTY/LOADING STATES */}
         {loading ? (
@@ -655,6 +657,7 @@ export default function FolderPage() {
                 allTags={allTags}
                 onAttachTag={handleAttachTag}
                 onRemoveTag={handleRemoveTag}
+                role={folder?.role}
               />
             ))}
           </div>

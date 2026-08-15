@@ -22,6 +22,7 @@ interface RawLink {
   snapshot_status: 'pending' | 'done' | 'failed';
   link_tags?: { tag_id: string; tags: Tag }[];
   created_at: string;
+  role?: 'owner' | 'editor' | 'viewer';
 }
 
 interface RawFolder {
@@ -532,6 +533,7 @@ function DashboardContent() {
                     allTags={allTags}
                     onAttachTag={handleAttachTag}
                     onRemoveTag={handleRemoveTag}
+                    role={link.role}
                   />
                 ))}
               </div>

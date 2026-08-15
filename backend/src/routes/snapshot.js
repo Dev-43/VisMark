@@ -31,17 +31,31 @@ router.post('/', requireAuth, snapshotRateLimiter, async (req, res) => {
     return res.status(400).json({ error: 'URL not allowed' });
   }
 
-  // Verify link ownership
+  // Verify folder membership and check role
   const userId = req.user.id;
   const { data: link, error: linkError } = await getSupabase()
     .from('links')
-    .select('id')
+    .select('folder_id')
     .eq('id', linkId)
-    .eq('user_id', userId)
     .single();
 
   if (linkError || !link) {
-    return res.status(403).json({ error: 'Link not found or access denied' });
+    return res.status(404).json({ error: 'Link not found' });
+  }
+
+  const { data: membership, error: memberError } = await getSupabase()
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', link.folder_id)
+    .eq('user_id', userId)
+    .single();
+
+  if (memberError || !membership) {
+    return res.status(403).json({ error: 'Folder access denied' });
+  }
+
+  if (membership.role !== 'owner' && membership.role !== 'editor') {
+    return res.status(403).json({ error: 'Only owners and editors can trigger snapshots' });
   }
 
   try {
