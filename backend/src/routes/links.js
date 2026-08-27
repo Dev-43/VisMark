@@ -1,5 +1,6 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { logActivity } from '../utils/activity.js';
 
 const router = express.Router();
 
@@ -82,6 +83,9 @@ router.post('/', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
+  // Log activity
+  await logActivity(folder_id, user_id, 'link_added', data.id);
+
   res.status(201).json(data);
 });
 
@@ -123,6 +127,9 @@ router.delete('/:id', async (req, res) => {
     .eq('id', id);
 
   if (error) return res.status(500).json({ error: error.message });
+
+  // Log activity
+  await logActivity(link.folder_id, user_id, 'link_deleted', id);
 
   res.status(200).json({ message: 'Link deleted' });
 });

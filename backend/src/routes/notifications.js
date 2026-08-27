@@ -1,5 +1,6 @@
 import express from 'express'
 import { createClient } from '@supabase/supabase-js'
+import { logActivity } from '../utils/activity.js'
 
 const getSupabase = () => createClient(
   process.env.SUPABASE_URL,
@@ -101,6 +102,9 @@ router.post('/:id/accept', async (req, res) => {
   if (memberInsertError) {
     return res.status(500).json({ error: 'Failed to join folder: ' + memberInsertError.message })
   }
+
+  // Log activity
+  await logActivity(notification.folder_id, userId, 'member_joined', userId)
 
   // 3. Update the invite status
   const { error: inviteUpdateError } = await supabase

@@ -1,6 +1,7 @@
 import express from 'express';
 import { nanoid } from 'nanoid';
 import { createClient } from '@supabase/supabase-js';
+import { logActivity } from '../utils/activity.js';
 
 const shareRouter = express.Router();
 const publicRouter = express.Router();
@@ -50,6 +51,9 @@ shareRouter.patch('/:id/share', async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  // Log activity
+  await logActivity(id, userId, 'public_share_toggled');
 
   res.json({
     is_public: data.is_public,

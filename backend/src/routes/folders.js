@@ -2,6 +2,7 @@ import express from 'express'
 import { createClient } from '@supabase/supabase-js'
 import requireAuth from '../middleware/auth.js'
 import { inviteRateLimiter } from '../middleware/rateLimiter.js'
+import { logActivity } from '../utils/activity.js'
 
 const getSupabase = () => createClient(
   process.env.SUPABASE_URL,
@@ -142,6 +143,9 @@ router.delete('/:id', requireAuth, async (req, res) => {
     return res.status(403).json({ error: 'Only folder owners can delete folders' })
   }
 
+  // Log activity
+  await logActivity(id, userId, 'delete_initiated');
+
   const { error } = await supabase
     .from('folders')
     .delete()
@@ -273,6 +277,9 @@ router.post('/:id/invites', inviteRateLimiter, async (req, res) => {
     return res.status(500).json({ error: 'Failed to create invite notification: ' + notificationError.message })
   }
 
+  // Log activity
+  await logActivity(id, userId, 'member_invited', targetProfile.id)
+
   res.status(201).json(newInvite)
 })
 
@@ -363,6 +370,54 @@ router.delete('/:id/invites/:inviteId', async (req, res) => {
   }
 
   res.json({ message: 'Invite cancelled successfully' })
+})
+
+// Get folder activity log (any member can view)
+router.get('/:id/activity', requireAuth, async (req, res) => {
+  const supabase = getSupabase()
+  const { id } = req.params
+  const userId = req.user.id
+
+  // Verify caller is a member of the folder
+  const { data: membership, error: memberError } = await supabase
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', id)
+    .eq('user_id', userId)
+    .single()
+
+  if (memberError || !membership) {
+    return res.status(404).json({ error: 'Folder not found or access denied' })
+  }
+
+  // Fetch activity entries with the acting user's username
+  const { data: activities, error: activityError } = await supabase
+    .from('folder_activity')
+    .select(`
+      id,
+      action,
+      target_id,
+      created_at,
+      user:profiles!user_id (id, username)
+    `)
+    .eq('folder_id', id)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (activityError) {
+    return res.status(500).json({ error: activityError.message })
+  }
+
+  // Format for frontend
+  const formatted = (activities || []).map(a => ({
+    id: a.id,
+    action: a.action,
+    target_id: a.target_id,
+    created_at: a.created_at,
+    username: a.user?.username || 'unknown'
+  }))
+
+  res.json(formatted)
 })
 
 export default router

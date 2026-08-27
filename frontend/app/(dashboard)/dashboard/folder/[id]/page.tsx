@@ -8,6 +8,7 @@ import LinkCard from '@/components/LinkCard';
 import SkeletonCard from '@/components/SkeletonCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import InviteModal from '@/components/InviteModal';
+import ActivityLogModal from '@/components/ActivityLogModal';
 import { useTags } from '@/lib/hooks/useTags';
 import { useToast } from '@/components/ToastProvider';
 
@@ -50,6 +51,7 @@ export default function FolderPage() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
 
   const { tags: allTags, attachTag, removeTag } = useTags();
 
@@ -412,6 +414,29 @@ export default function FolderPage() {
               </button>
             )}
 
+            {/* Activity Log Button (all members) */}
+            <button
+              onClick={() => setIsActivityOpen(true)}
+              style={{
+                backgroundColor: 'var(--surface-2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--border)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--surface-2)';
+              }}
+            >
+              Activity
+            </button>
+
             {/* Share Button / Badge */}
             {folder?.is_public ? (
               <button
@@ -677,6 +702,13 @@ export default function FolderPage() {
       <InviteModal
         isOpen={isInviteOpen}
         onClose={() => setIsInviteOpen(false)}
+        folderId={id}
+      />
+
+      {/* Activity Log Modal */}
+      <ActivityLogModal
+        isOpen={isActivityOpen}
+        onClose={() => setIsActivityOpen(false)}
         folderId={id}
       />
     </>
