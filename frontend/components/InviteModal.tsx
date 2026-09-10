@@ -16,13 +16,22 @@ interface PendingInvite {
   invited_user: InvitedUser;
 }
 
+interface Member {
+  id: string;
+  role: 'owner' | 'editor' | 'viewer';
+  joined_at: string;
+  user_id: string;
+  username: string;
+}
+
 interface InviteModalProps {
   isOpen: boolean;
   onClose: () => void;
   folderId: string;
+  currentRole?: 'owner' | 'editor' | 'viewer';
 }
 
-export default function InviteModal({ isOpen, onClose, folderId }: InviteModalProps) {
+export default function InviteModal({ isOpen, onClose, folderId, currentRole }: InviteModalProps) {
   const { showToast } = useToast();
   const [username, setUsername] = useState('');
   const [role, setRole] = useState<'editor' | 'viewer'>('editor');
@@ -33,6 +42,17 @@ export default function InviteModal({ isOpen, onClose, folderId }: InviteModalPr
   const [loadingInvites, setLoadingInvites] = useState(false);
   const [sending, setSending] = useState(false);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
+
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [myProfile, setMyProfile] = useState<{ id: string; username: string } | null>(null);
+  const [memberActionId, setMemberActionId] = useState<string | null>(null);
+  const [confirmingMember, setConfirmingMember] = useState<Member | null>(null);
+  const [copyOwnLinks, setCopyOwnLinks] = useState(false);
+
+  const isOwner = currentRole
+    ? currentRole === 'owner'
+    : members.some(m => m.user_id === myProfile?.id && m.role === 'owner');
 
   // Fetch pending invites
   const fetchInvites = useCallback(async () => {
@@ -51,15 +71,51 @@ export default function InviteModal({ isOpen, onClose, folderId }: InviteModalPr
     }
   }, [folderId]);
 
-  // Load invites when modal opens
+  // Fetch active members
+  const fetchMembers = useCallback(async () => {
+    if (!folderId) return;
+    setLoadingMembers(true);
+    try {
+      const res = await apiFetch(`/api/folders/${folderId}/members`);
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data);
+      }
+    } catch (err) {
+      console.error('Error fetching members:', err);
+    } finally {
+      setLoadingMembers(false);
+    }
+  }, [folderId]);
+
+  // Fetch my profile
+  const fetchMyProfile = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/profiles/me');
+      if (res.ok) {
+        const data = await res.json();
+        setMyProfile(data);
+      }
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+    }
+  }, []);
+
+  // Load data when modal opens
   useEffect(() => {
     if (isOpen) {
-      fetchInvites();
+      if (currentRole ? currentRole === 'owner' : true) {
+        fetchInvites();
+      }
+      fetchMembers();
+      fetchMyProfile();
       setUsername('');
       setExists(null);
       setRole('editor');
+      setConfirmingMember(null);
+      setCopyOwnLinks(false);
     }
-  }, [isOpen, fetchInvites]);
+  }, [isOpen, currentRole, fetchInvites, fetchMembers, fetchMyProfile]);
 
   // Debounced username existence check
   useEffect(() => {
@@ -138,6 +194,39 @@ export default function InviteModal({ isOpen, onClose, folderId }: InviteModalPr
       showToast(err instanceof Error ? err.message : 'Failed to cancel invite', 'error');
     } finally {
       setCancelingId(null);
+    }
+  };
+
+  const handleRemoveOrLeaveMember = async (member: Member) => {
+    if (memberActionId) return;
+    setMemberActionId(member.user_id);
+    try {
+      const isLeaving = member.user_id === myProfile?.id;
+      const res = await apiFetch(`/api/folders/${folderId}/members/${member.user_id}?copyOwnLinks=${copyOwnLinks}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || `Failed to ${isLeaving ? 'leave' : 'remove member'}`);
+      }
+
+      showToast(isLeaving ? 'Successfully left the folder' : `@${member.username} removed successfully`, 'success');
+      setConfirmingMember(null);
+      setCopyOwnLinks(false);
+      
+      window.dispatchEvent(new CustomEvent('folders-updated'));
+      
+      if (isLeaving) {
+        onClose();
+        window.location.href = '/dashboard';
+      } else {
+        fetchMembers();
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Action failed', 'error');
+    } finally {
+      setMemberActionId(null);
     }
   };
 
@@ -381,126 +470,261 @@ export default function InviteModal({ isOpen, onClose, folderId }: InviteModalPr
       <div className="invite-backdrop" onClick={onClose}>
         <div className="invite-modal-box" onClick={(e) => e.stopPropagation()}>
           
-          {/* HEADER */}
-          <div className="invite-modal-header">
-            <h3 className="invite-modal-title">Invite Members</h3>
-            <button className="invite-close-btn" onClick={onClose}>
-              <X size={18} />
-            </button>
-          </div>
-
-          {/* INVITE FORM */}
-          <form className="invite-form" onSubmit={handleSendInvite}>
-            <div className="invite-field-group">
-              <label className="invite-label" htmlFor="invite-username">
-                Invited Username
-              </label>
-              <div className="invite-input-container">
+          {confirmingMember ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 className="invite-modal-title">
+                {confirmingMember.user_id === myProfile?.id ? 'Leave Folder' : 'Remove Member'}
+              </h3>
+              <p style={{ fontSize: '14px', color: 'var(--text)', margin: 0, fontFamily: 'var(--font-body)' }}>
+                {confirmingMember.user_id === myProfile?.id
+                  ? 'Are you sure you want to leave this folder?'
+                  : `Are you sure you want to remove @${confirmingMember.username} from this folder?`}
+              </p>
+              
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text)', fontFamily: 'var(--font-body)' }}>
                 <input
-                  id="invite-username"
-                  className="invite-input"
-                  type="text"
-                  placeholder="e.g. johndoe"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={sending}
-                  autoComplete="off"
+                  type="checkbox"
+                  checked={copyOwnLinks}
+                  onChange={(e) => setCopyOwnLinks(e.target.checked)}
                 />
-                <div className="invite-input-status-icon">
-                  {checking && <Loader2 className="animate-spin" size={16} />}
-                </div>
+                <span>
+                  {confirmingMember.user_id === myProfile?.id
+                    ? 'Keep a personal copy of links I personally added'
+                    : 'Allow them to keep a personal copy of links they added'}
+                </span>
+              </label>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingMember(null);
+                    setCopyOwnLinks(false);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--text)',
+                    fontSize: '13px',
+                    fontFamily: 'var(--font-body)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveOrLeaveMember(confirmingMember)}
+                  disabled={!!memberActionId}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'var(--error)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontFamily: 'var(--font-body)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {memberActionId && <Loader2 className="animate-spin" size={14} />}
+                  {confirmingMember.user_id === myProfile?.id ? 'Leave' : 'Remove'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* HEADER */}
+              <div className="invite-modal-header">
+                <h3 className="invite-modal-title">
+                  {isOwner ? 'Folder Members & Invites' : 'Folder Members'}
+                </h3>
+                <button className="invite-close-btn" onClick={onClose}>
+                  <X size={18} />
+                </button>
               </div>
 
-              {/* LIVE VALIDATION MESSAGE */}
-              {username.trim().length >= 3 && !checking && (
-                <div className="invite-validation-msg" style={{
-                  color: exists ? 'var(--success)' : 'var(--error)'
-                }}>
-                  {exists ? (
-                    <>
-                      <Check size={14} />
-                      <span>@{username.trim().toLowerCase()} exists and is ready to invite</span>
-                    </>
+              {/* INVITE FORM (Owner only) */}
+              {isOwner && (
+                <form className="invite-form" onSubmit={handleSendInvite}>
+                  <div className="invite-field-group">
+                    <label className="invite-label" htmlFor="invite-username">
+                      Invited Username
+                    </label>
+                    <div className="invite-input-container">
+                      <input
+                        id="invite-username"
+                        className="invite-input"
+                        type="text"
+                        placeholder="e.g. johndoe"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        disabled={sending}
+                        autoComplete="off"
+                      />
+                      <div className="invite-input-status-icon">
+                        {checking && <Loader2 className="animate-spin" size={16} />}
+                      </div>
+                    </div>
+
+                    {/* LIVE VALIDATION MESSAGE */}
+                    {username.trim().length >= 3 && !checking && (
+                      <div className="invite-validation-msg" style={{
+                        color: exists ? 'var(--success)' : 'var(--error)'
+                      }}>
+                        {exists ? (
+                          <>
+                            <Check size={14} />
+                            <span>@{username.trim().toLowerCase()} exists and is ready to invite</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle size={14} />
+                            <span>User not found</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="invite-field-group">
+                    <label className="invite-label" htmlFor="invite-role">
+                      Role
+                    </label>
+                    <select
+                      id="invite-role"
+                      className="invite-role-select"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
+                      disabled={sending}
+                    >
+                      <option value="editor">Editor (can add/delete links)</option>
+                      <option value="viewer">Viewer (read-only)</option>
+                    </select>
+                  </div>
+
+                  <button
+                    className="invite-submit-btn"
+                    type="submit"
+                    disabled={sending || checking || !exists || !username.trim()}
+                  >
+                    {sending ? (
+                      <>
+                        <Loader2 className="animate-spin" size={16} />
+                        Sending...
+                      </>
+                    ) : (
+                      'Send Invite'
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* PENDING INVITES LIST (Owner only) */}
+              {isOwner && (
+                <div className="invites-section">
+                  <h4 className="invites-section-title">Pending Invites</h4>
+                  
+                  {loadingInvites ? (
+                    <div className="invite-empty-state">Loading invites...</div>
+                  ) : invites.length === 0 ? (
+                    <div className="invite-empty-state">No pending invites.</div>
                   ) : (
-                    <>
-                      <AlertCircle size={14} />
-                      <span>User not found</span>
-                    </>
+                    <div className="invites-list">
+                      {invites.map((invite) => (
+                        <div className="invite-item" key={invite.id}>
+                          <div className="invite-item-user">
+                            <span className="invite-item-username">
+                              @{invite.invited_user?.username}
+                            </span>
+                            <span className="invite-item-role">
+                              Role: {invite.role}
+                            </span>
+                          </div>
+                          <div className="invite-item-actions">
+                            <span className="invite-status-badge">
+                              Pending
+                            </span>
+                            <button
+                              className="invite-cancel-btn"
+                              type="button"
+                              onClick={() => handleCancelInvite(invite.id)}
+                              disabled={cancelingId === invite.id}
+                            >
+                              {cancelingId === invite.id ? '...' : 'Cancel'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
-            </div>
 
-            <div className="invite-field-group">
-              <label className="invite-label" htmlFor="invite-role">
-                Role
-              </label>
-              <select
-                id="invite-role"
-                className="invite-role-select"
-                value={role}
-                onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}
-                disabled={sending}
-              >
-                <option value="editor">Editor (can add/delete links)</option>
-                <option value="viewer">Viewer (read-only)</option>
-              </select>
-            </div>
+              {/* ACTIVE MEMBERS LIST */}
+              <div className="invites-section">
+                <h4 className="invites-section-title">Active Members</h4>
+                
+                {loadingMembers ? (
+                  <div className="invite-empty-state">Loading members...</div>
+                ) : (
+                  <div className="invites-list">
+                    {members.map((member) => {
+                      const isMe = member.user_id === myProfile?.id;
+                      const isOwnerOfFolder = members.some(m => m.user_id === myProfile?.id && m.role === 'owner');
+                      
+                      const canLeave = isMe && member.role !== 'owner';
+                      const canRemove = isOwnerOfFolder && !isMe && member.role !== 'owner';
 
-            <button
-              className="invite-submit-btn"
-              type="submit"
-              disabled={sending || checking || !exists || !username.trim()}
-            >
-              {sending ? (
-                <>
-                  <Loader2 className="animate-spin" size={16} />
-                  Sending...
-                </>
-              ) : (
-                'Send Invite'
-              )}
-            </button>
-          </form>
-
-          {/* PENDING INVITES LIST */}
-          <div className="invites-section">
-            <h4 className="invites-section-title">Pending Invites</h4>
-            
-            {loadingInvites ? (
-              <div className="invite-empty-state">Loading invites...</div>
-            ) : invites.length === 0 ? (
-              <div className="invite-empty-state">No pending invites.</div>
-            ) : (
-              <div className="invites-list">
-                {invites.map((invite) => (
-                  <div className="invite-item" key={invite.id}>
-                    <div className="invite-item-user">
-                      <span className="invite-item-username">
-                        @{invite.invited_user?.username}
-                      </span>
-                      <span className="invite-item-role">
-                        Role: {invite.role}
-                      </span>
-                    </div>
-                    <div className="invite-item-actions">
-                      <span className="invite-status-badge">
-                        Pending
-                      </span>
-                      <button
-                        className="invite-cancel-btn"
-                        type="button"
-                        onClick={() => handleCancelInvite(invite.id)}
-                        disabled={cancelingId === invite.id}
-                      >
-                        {cancelingId === invite.id ? '...' : 'Cancel'}
-                      </button>
-                    </div>
+                      return (
+                        <div className="invite-item" key={member.id}>
+                          <div className="invite-item-user">
+                            <span className="invite-item-username">
+                              @{member.username} {isMe && '(You)'}
+                            </span>
+                            <span className="invite-item-role">
+                              Role: {member.role}
+                            </span>
+                          </div>
+                          <div className="invite-item-actions">
+                            {canLeave && (
+                              <button
+                                className="invite-cancel-btn"
+                                type="button"
+                                onClick={() => setConfirmingMember(member)}
+                              >
+                                Leave
+                              </button>
+                            )}
+                            {canRemove && (
+                              <button
+                                className="invite-cancel-btn"
+                                type="button"
+                                onClick={() => setConfirmingMember(member)}
+                              >
+                                Remove
+                              </button>
+                            )}
+                            {!canLeave && !canRemove && (
+                              <span className="invite-item-role" style={{ textTransform: 'none' }}>
+                                {member.role === 'owner' ? 'Owner' : ''}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
 
         </div>
       </div>

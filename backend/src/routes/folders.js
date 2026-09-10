@@ -420,4 +420,189 @@ router.get('/:id/activity', requireAuth, async (req, res) => {
   res.json(formatted)
 })
 
+// Get members of a folder (any member of the folder can query this)
+router.get('/:id/members', requireAuth, async (req, res) => {
+  const supabase = getSupabase()
+  const { id } = req.params
+  const userId = req.user.id
+
+  // 1. Verify user is a member of the folder
+  const { data: membership, error: memberError } = await supabase
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', id)
+    .eq('user_id', userId)
+    .single()
+
+  if (memberError || !membership) {
+    return res.status(404).json({ error: 'Folder not found or access denied' })
+  }
+
+  // 2. Fetch all members with usernames
+  const { data: members, error: fetchError } = await supabase
+    .from('folder_members')
+    .select(`
+      id,
+      role,
+      joined_at,
+      user_id,
+      user:profiles!user_id (id, username)
+    `)
+    .eq('folder_id', id)
+    .order('joined_at', { ascending: true })
+
+  if (fetchError) {
+    return res.status(500).json({ error: fetchError.message })
+  }
+
+  // Format response
+  const formatted = (members || []).map(m => ({
+    id: m.id,
+    role: m.role,
+    joined_at: m.joined_at,
+    user_id: m.user_id,
+    username: m.user?.username || 'unknown'
+  }))
+
+  res.json(formatted)
+})
+
+// Leave a folder or remove a member
+router.delete('/:id/members/:targetUserId', requireAuth, async (req, res) => {
+  const supabase = getSupabase()
+  const { id, targetUserId } = req.params
+  const userId = req.user.id
+  const copyOwnLinks = req.body.copyOwnLinks === true || req.query.copyOwnLinks === 'true'
+
+  // 1. Fetch source folder information
+  const { data: folder, error: folderErr } = await supabase
+    .from('folders')
+    .select('name')
+    .eq('id', id)
+    .single()
+
+  if (folderErr || !folder) {
+    return res.status(404).json({ error: 'Folder not found' })
+  }
+
+  // 2. Verify target user is indeed a member of the folder
+  const { data: targetMembership, error: targetMemberError } = await supabase
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', id)
+    .eq('user_id', targetUserId)
+    .single()
+
+  if (targetMemberError || !targetMembership) {
+    return res.status(404).json({ error: 'Target member not found in this folder' })
+  }
+
+  // 3. Verify caller permissions:
+  // - If targetUserId === userId: leaving. Allowed for non-owners. Owner cannot leave.
+  // - If targetUserId !== userId: removing. Only allowed if caller is the owner of the folder.
+  const isLeaving = targetUserId === userId
+
+  if (isLeaving) {
+    if (targetMembership.role === 'owner') {
+      return res.status(400).json({ error: 'Owner cannot leave without transferring ownership first' })
+    }
+  } else {
+    // Caller must be owner
+    const { data: callerMembership, error: callerMemberError } = await supabase
+      .from('folder_members')
+      .select('role')
+      .eq('folder_id', id)
+      .eq('user_id', userId)
+      .single()
+
+    if (callerMemberError || !callerMembership || callerMembership.role !== 'owner') {
+      return res.status(403).json({ error: 'Only owners can remove members' })
+    }
+  }
+
+  // 4. If copyOwnLinks is true, duplicate the links the target user added
+  if (copyOwnLinks) {
+    // a. Fetch links added by target user in this folder
+    const { data: linksToCopy, error: linksError } = await supabase
+      .from('links')
+      .select('*')
+      .eq('folder_id', id)
+      .eq('user_id', targetUserId)
+
+    if (linksError) {
+      return res.status(500).json({ error: 'Failed to fetch links for duplication: ' + linksError.message })
+    }
+
+    if (linksToCopy && linksToCopy.length > 0) {
+      // b. Create a new personal folder for the target user
+      const { data: newFolder, error: newFolderError } = await supabase
+        .from('folders')
+        .insert({
+          name: `${folder.name} (Copy)`,
+          user_id: targetUserId
+        })
+        .select()
+        .single()
+
+      if (newFolderError) {
+        return res.status(500).json({ error: 'Failed to create personal copy folder: ' + newFolderError.message })
+      }
+
+      // c. Add target user as owner of the new folder in folder_members
+      const { error: newMemberError } = await supabase
+        .from('folder_members')
+        .insert({
+          folder_id: newFolder.id,
+          user_id: targetUserId,
+          role: 'owner'
+        })
+
+      if (newMemberError) {
+        // Rollback folder creation
+        await supabase.from('folders').delete().eq('id', newFolder.id)
+        return res.status(500).json({ error: 'Failed to set owner of copied folder: ' + newMemberError.message })
+      }
+
+      // d. Copy the links into the new folder
+      const linksData = linksToCopy.map(link => ({
+        folder_id: newFolder.id,
+        user_id: targetUserId,
+        url: link.url,
+        title: link.title,
+        description: link.description,
+        screenshot_url: link.screenshot_url,
+        favicon_url: link.favicon_url,
+        snapshot_status: link.snapshot_status
+      }))
+
+      const { error: insertLinksError } = await supabase
+        .from('links')
+        .insert(linksData)
+
+      if (insertLinksError) {
+        // Cleanup folder (which cascades to folder_members)
+        await supabase.from('folders').delete().eq('id', newFolder.id)
+        return res.status(500).json({ error: 'Failed to copy links: ' + insertLinksError.message })
+      }
+    }
+  }
+
+  // 5. Log activity
+  const action = isLeaving ? 'member_left' : 'member_removed'
+  await logActivity(id, userId, action, targetUserId)
+
+  // 6. Delete the membership row
+  const { error: deleteError } = await supabase
+    .from('folder_members')
+    .delete()
+    .eq('folder_id', id)
+    .eq('user_id', targetUserId)
+
+  if (deleteError) {
+    return res.status(500).json({ error: deleteError.message })
+  }
+
+  res.json({ message: isLeaving ? 'Successfully left the folder' : 'Member removed successfully' })
+})
+
 export default router

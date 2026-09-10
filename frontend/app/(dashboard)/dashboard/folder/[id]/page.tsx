@@ -389,30 +389,28 @@ export default function FolderPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Invite Button (Owner only) */}
-            {folder?.role === 'owner' && (
-              <button
-                onClick={() => setIsInviteOpen(true)}
-                style={{
-                  backgroundColor: 'var(--surface-2)',
-                  color: 'var(--text)',
-                  border: '1px solid var(--border)',
-                  padding: '6px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--border)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--surface-2)';
-                }}
-              >
-                Invite Members
-              </button>
-            )}
+            {/* Members Button (All members: 'Invite Members' for owner, 'Members' for others) */}
+            <button
+              onClick={() => setIsInviteOpen(true)}
+              style={{
+                backgroundColor: 'var(--surface-2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--border)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--surface-2)';
+              }}
+            >
+              {folder?.role === 'owner' ? 'Invite Members' : 'Members'}
+            </button>
 
             {/* Activity Log Button (all members) */}
             <button
@@ -698,11 +696,12 @@ export default function FolderPage() {
         onCancel={() => setDeleteTargetId(null)}
       />
 
-      {/* Invite Modal */}
+      {/* Invite / Members Modal */}
       <InviteModal
         isOpen={isInviteOpen}
         onClose={() => setIsInviteOpen(false)}
         folderId={id}
+        currentRole={folder?.role}
       />
 
       {/* Activity Log Modal */}
