@@ -128,6 +128,22 @@ export function Topbar({ pageTitle, userEmail, onMenuClick }: TopbarProps) {
     }
   };
 
+  const handleDismiss = async (id: string) => {
+    setActioningId(id);
+    try {
+      const res = await apiFetch(`/api/notifications/${id}/dismiss`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
   // Sync input value with search query parameter in URL
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -519,59 +535,89 @@ export function Topbar({ pageTitle, userEmail, onMenuClick }: TopbarProps) {
                             border: "1px solid var(--border)"
                           }}
                         >
-                          <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.4 }}>
-                            <strong>@{notif.sender}</strong> invited you to join <strong>{notif.folder?.name || "a folder"}</strong> as <strong>{notif.role}</strong>.
-                          </div>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <button
-                              type="button"
-                              disabled={actioningId !== null}
-                              onClick={() => handleAccept(notif.id)}
-                              style={{
-                                flex: 1,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 4,
-                                padding: "6px var(--space-2)",
-                                background: "var(--accent)",
-                                color: "#ffffff",
-                                border: "none",
-                                borderRadius: "var(--radius-sm)",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                cursor: "pointer",
-                                opacity: actioningId !== null ? 0.6 : 1
-                              }}
-                            >
-                              <Check size={12} />
-                              Accept
-                            </button>
-                            <button
-                              type="button"
-                              disabled={actioningId !== null}
-                              onClick={() => handleDecline(notif.id)}
-                              style={{
-                                flex: 1,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 4,
-                                padding: "6px var(--space-2)",
-                                background: "var(--surface)",
-                                color: "var(--text-muted)",
-                                border: "1px solid var(--border)",
-                                borderRadius: "var(--radius-sm)",
-                                fontSize: 12,
-                                fontWeight: 500,
-                                cursor: "pointer",
-                                opacity: actioningId !== null ? 0.6 : 1
-                              }}
-                            >
-                              <X size={12} />
-                              Decline
-                            </button>
-                          </div>
+                          {notif.type === 'folder_deleted' ? (
+                            <>
+                              <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.4 }}>
+                                Folder <strong>{notif.folder?.name || "A shared folder"}</strong> was deleted by its owner.
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                <button
+                                  type="button"
+                                  disabled={actioningId !== null}
+                                  onClick={() => handleDismiss(notif.id)}
+                                  style={{
+                                    padding: "5px 12px",
+                                    background: "var(--surface-2)",
+                                    color: "var(--text)",
+                                    border: "1px solid var(--border)",
+                                    borderRadius: "var(--radius-sm)",
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    cursor: "pointer",
+                                    opacity: actioningId !== null ? 0.6 : 1
+                                  }}
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ fontSize: 13, color: "var(--text)", lineHeight: 1.4 }}>
+                                <strong>@{notif.sender}</strong> invited you to join <strong>{notif.folder?.name || "a folder"}</strong> as <strong>{notif.role}</strong>.
+                              </div>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button
+                                  type="button"
+                                  disabled={actioningId !== null}
+                                  onClick={() => handleAccept(notif.id)}
+                                  style={{
+                                    flex: 1,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 4,
+                                    padding: "6px var(--space-2)",
+                                    background: "var(--accent)",
+                                    color: "#ffffff",
+                                    border: "none",
+                                    borderRadius: "var(--radius-sm)",
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    cursor: "pointer",
+                                    opacity: actioningId !== null ? 0.6 : 1
+                                  }}
+                                >
+                                  <Check size={12} />
+                                  Accept
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={actioningId !== null}
+                                  onClick={() => handleDecline(notif.id)}
+                                  style={{
+                                    flex: 1,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 4,
+                                    padding: "6px var(--space-2)",
+                                    background: "var(--surface)",
+                                    color: "var(--text-muted)",
+                                    border: "1px solid var(--border)",
+                                    borderRadius: "var(--radius-sm)",
+                                    fontSize: 12,
+                                    fontWeight: 500,
+                                    cursor: "pointer",
+                                    opacity: actioningId !== null ? 0.6 : 1
+                                  }}
+                                >
+                                  <X size={12} />
+                                  Decline
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>

@@ -8,6 +8,7 @@ export interface FolderData {
   linkCount: number;
   is_public: boolean;
   created_at: string;
+  role?: 'owner' | 'editor' | 'viewer';
 }
 
 interface FolderCardProps {
@@ -115,32 +116,51 @@ export default function FolderCard({ folder, onRename, onDeleteClick }: FolderCa
             marginBottom: '16px',
           }}
         >
-          <Folder size={32} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Folder size={32} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+            {folder.role && folder.role !== 'owner' && (
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--surface-2)',
+                  color: 'var(--text-muted)',
+                  textTransform: 'capitalize',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                {folder.role}
+              </span>
+            )}
+          </div>
           
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={handleMenuClick}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                padding: '4px',
-                display: 'flex',
-                borderRadius: 'var(--radius-sm)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--text)';
-                e.currentTarget.style.background = 'var(--surface-2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--text-muted)';
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              <MoreHorizontal size={20} />
-            </button>
+          {(!folder.role || folder.role === 'owner') && (
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={handleMenuClick}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  borderRadius: 'var(--radius-sm)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--text)';
+                  e.currentTarget.style.background = 'var(--surface-2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--text-muted)';
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <MoreHorizontal size={20} />
+              </button>
 
             {isMenuOpen && (
               <>
@@ -224,6 +244,7 @@ export default function FolderCard({ folder, onRename, onDeleteClick }: FolderCa
               </>
             )}
           </div>
+          )}
         </div>
 
         {isRenaming ? (

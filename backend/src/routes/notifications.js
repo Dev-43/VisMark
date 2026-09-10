@@ -40,15 +40,24 @@ router.get('/', async (req, res) => {
   }
 
   // Format response for easier front-end consumption
-  const formatted = (notifications || []).map(notif => ({
-    id: notif.id,
-    type: notif.type,
-    status: notif.status,
-    created_at: notif.created_at,
-    folder: notif.folder,
-    role: notif.invite?.role || 'editor',
-    sender: notif.invite?.invited_by_profile?.username || 'unknown'
-  }))
+  const formatted = (notifications || []).map(notif => {
+    let folder = notif.folder
+    let type = notif.type
+    if (notif.type && notif.type.startsWith('folder_deleted:')) {
+      const folderName = notif.type.slice('folder_deleted:'.length)
+      folder = { id: '', name: folderName }
+      type = 'folder_deleted'
+    }
+    return {
+      id: notif.id,
+      type,
+      status: notif.status,
+      created_at: notif.created_at,
+      folder,
+      role: notif.invite?.role || 'editor',
+      sender: notif.invite?.invited_by_profile?.username || 'Owner'
+    }
+  })
 
   res.json(formatted)
 })
@@ -179,6 +188,25 @@ router.post('/:id/decline', async (req, res) => {
   }
 
   res.json({ message: 'Invitation declined successfully' })
+})
+
+// Dismiss an informational notification (e.g. folder_deleted)
+router.post('/:id/dismiss', async (req, res) => {
+  const supabase = getSupabase()
+  const { id } = req.params
+  const userId = req.user.id
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({ status: 'read' })
+    .eq('id', id)
+    .eq('recipient_id', userId)
+
+  if (error) {
+    return res.status(500).json({ error: error.message })
+  }
+
+  res.json({ message: 'Notification dismissed successfully' })
 })
 
 export default router

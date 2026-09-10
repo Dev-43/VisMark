@@ -143,9 +143,40 @@ router.delete('/:id', requireAuth, async (req, res) => {
     return res.status(403).json({ error: 'Only folder owners can delete folders' })
   }
 
-  // Log activity
+  // 1. Fetch folder name
+  const { data: folder } = await supabase
+    .from('folders')
+    .select('name')
+    .eq('id', id)
+    .single()
+
+  const folderName = folder?.name || 'A shared folder'
+
+  // 2. Fetch all other active members in the folder
+  const { data: otherMembers } = await supabase
+    .from('folder_members')
+    .select('user_id')
+    .eq('folder_id', id)
+    .neq('user_id', userId)
+
+  // 3. Notify all other members about folder deletion
+  if (otherMembers && otherMembers.length > 0) {
+    const notificationsData = otherMembers.map(m => ({
+      recipient_id: m.user_id,
+      type: `folder_deleted:${folderName}`,
+      folder_id: null,
+      status: 'pending'
+    }))
+    const { error: notifErr } = await supabase.from('notifications').insert(notificationsData)
+    if (notifErr) {
+      console.error('Failed to notify members of folder deletion:', notifErr.message)
+    }
+  }
+
+  // 4. Log activity
   await logActivity(id, userId, 'delete_initiated');
 
+  // 5. Delete folder (cascades to links, folder_members, folder_invites)
   const { error } = await supabase
     .from('folders')
     .delete()
@@ -153,7 +184,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message })
 
-  res.json({ message: 'Folder deleted' })
+  res.json({ message: 'Folder deleted and all members notified' })
 })
 
 // Invite a user to a folder (Owner only)

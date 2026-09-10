@@ -32,6 +32,7 @@ interface RawFolder {
   created_at: string;
   is_public: boolean;
   public_slug: string | null;
+  role?: 'owner' | 'editor' | 'viewer';
 }
 
 function DashboardContent() {
@@ -155,6 +156,7 @@ function DashboardContent() {
             linkCount: Array.isArray(links) ? links.length : 0,
             is_public: folder.is_public || false,
             created_at: folder.created_at,
+            role: folder.role,
           };
         })
       );
@@ -581,7 +583,7 @@ function DashboardContent() {
       <ConfirmDialog
         isOpen={deleteTarget !== null}
         title="Delete Folder"
-        message={`Are you sure you want to delete "${deleteTarget?.name}"? All links in this folder will be deleted permanently.`}
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? All links in this folder will be deleted permanently, and all members will be notified.`}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTarget(null)}
       />
