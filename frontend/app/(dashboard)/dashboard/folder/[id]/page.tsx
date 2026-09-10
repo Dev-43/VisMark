@@ -22,6 +22,7 @@ interface RawLink {
   url: string;
   title: string | null;
   description: string | null;
+  personal_description?: string | null;
   screenshot_url: string | null;
   favicon_url: string | null;
   snapshot_status: 'pending' | 'done' | 'failed';
@@ -94,6 +95,28 @@ export default function FolderPage() {
     } catch (err) {
       console.error('Failed to remove tag:', err);
       showToast('Failed to remove tag', 'error');
+    }
+  };
+
+  const handleUpdatePersonalDescription = async (linkId: string, desc: string | null) => {
+    try {
+      const res = await apiFetch(`/api/links/${linkId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ personal_description: desc }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to update personal note');
+      }
+      setLinks((prev) =>
+        prev.map((link) =>
+          link.id === linkId ? { ...link, personal_description: desc } : link
+        )
+      );
+      showToast(desc ? 'Personal note saved' : 'Personal note cleared', 'success');
+    } catch (err) {
+      console.error('Failed to update personal note:', err);
+      showToast('Failed to save personal note', 'error');
+      throw err;
     }
   };
 
@@ -672,6 +695,8 @@ export default function FolderPage() {
                 url={link.url}
                 title={link.title}
                 description={link.description}
+                personalDescription={link.personal_description}
+                onUpdatePersonalDescription={handleUpdatePersonalDescription}
                 screenshotUrl={link.screenshot_url}
                 faviconUrl={link.favicon_url}
                 snapshotStatus={link.snapshot_status}

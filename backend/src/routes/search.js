@@ -54,6 +54,7 @@ router.get('/', async (req, res) => {
         url,
         title,
         description,
+        personal_description,
         screenshot_url,
         favicon_url,
         snapshot_status,

@@ -1,8 +1,8 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useState } from 'react';
-import { ExternalLink, Copy, Trash2, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ExternalLink, Copy, Trash2, Loader2, Edit2 } from 'lucide-react';
 import TagPicker from './TagPicker';
 
 interface Tag {
@@ -15,6 +15,8 @@ export interface LinkCardProps {
   url: string;
   title: string | null;
   description: string | null;
+  personalDescription?: string | null;
+  onUpdatePersonalDescription?: (linkId: string, desc: string | null) => Promise<void>;
   screenshotUrl: string | null;
   faviconUrl: string | null;
   snapshotStatus: 'pending' | 'done' | 'failed';
@@ -50,6 +52,8 @@ export default function LinkCard({
   url,
   title,
   description,
+  personalDescription,
+  onUpdatePersonalDescription,
   screenshotUrl,
   faviconUrl,
   snapshotStatus,
@@ -63,6 +67,45 @@ export default function LinkCard({
   const canEdit = role === 'owner' || role === 'editor';
   const [isHovering, setIsHovering] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [currentDesc, setCurrentDesc] = useState(personalDescription ?? '');
+  const [savingDesc, setSavingDesc] = useState(false);
+
+  useEffect(() => {
+    setCurrentDesc(personalDescription ?? '');
+  }, [personalDescription]);
+
+  const hasPersonalOverride = Boolean(personalDescription && personalDescription.trim());
+  const displayDescription = hasPersonalOverride ? personalDescription : description;
+
+  const handleSaveDescription = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSavingDesc(true);
+    try {
+      const val = currentDesc.trim() || null;
+      if (onUpdatePersonalDescription) {
+        await onUpdatePersonalDescription(id, val);
+      } else {
+        const token = localStorage.getItem('access_token') || '';
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/links/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ personal_description: val }),
+        });
+        if (!res.ok) {
+          throw new Error('Failed to update note');
+        }
+      }
+      setIsEditingDesc(false);
+    } catch (err) {
+      console.error('Failed to save personal description:', err);
+    } finally {
+      setSavingDesc(false);
+    }
+  };
 
   const handleOpenUrl = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -315,22 +358,119 @@ export default function LinkCard({
           {title || 'Untitled'}
         </h3>
 
-        {description && (
-          <p
-            style={{
-              fontSize: '13px',
-              color: 'var(--text-muted)',
-              margin: '6px 0 0 0',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              fontFamily: 'var(--font-body)',
-              lineHeight: 1.4,
-            }}
+        {isEditingDesc ? (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}
           >
-            {description}
-          </p>
+            <textarea
+              value={currentDesc}
+              onChange={(e) => setCurrentDesc(e.target.value)}
+              placeholder="Add a personal note or custom description..."
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '8px',
+                fontSize: '12px',
+                fontFamily: 'var(--font-body)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--accent)',
+                backgroundColor: 'var(--surface-2)',
+                color: 'var(--text)',
+                resize: 'none',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  handleSaveDescription();
+                } else if (e.key === 'Escape') {
+                  setIsEditingDesc(false);
+                  setCurrentDesc(personalDescription ?? '');
+                }
+              }}
+            />
+            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                disabled={savingDesc}
+                onClick={() => {
+                  setIsEditingDesc(false);
+                  setCurrentDesc(personalDescription ?? '');
+                }}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={savingDesc}
+                onClick={handleSaveDescription}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius-sm)',
+                  border: 'none',
+                  backgroundColor: 'var(--accent)',
+                  color: 'white',
+                  cursor: savingDesc ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                {savingDesc && <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} />}
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          displayDescription && (
+            <p
+              style={{
+                fontSize: '13px',
+                color: hasPersonalOverride ? 'var(--text)' : 'var(--text-muted)',
+                margin: '6px 0 0 0',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                fontFamily: 'var(--font-body)',
+                lineHeight: 1.4,
+              }}
+            >
+              {hasPersonalOverride && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    fontWeight: 600,
+                    color: 'var(--accent)',
+                    backgroundColor: 'var(--accent-subtle)',
+                    padding: '1px 5px',
+                    borderRadius: 'var(--radius-sm)',
+                    marginRight: '6px',
+                    display: 'inline-block',
+                    verticalAlign: 'middle',
+                  }}
+                >
+                  Note
+                </span>
+              )}
+              {displayDescription}
+            </p>
+          )
         )}
       </div>
 
@@ -392,6 +532,38 @@ export default function LinkCard({
           <Copy size={14} />
           {copied ? 'Copied' : 'Copy'}
         </button>
+
+        {canEdit && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditingDesc(true);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'background var(--transition)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            }}
+          >
+            <Edit2 size={14} />
+            {hasPersonalOverride ? 'Edit Note' : 'Add Note'}
+          </button>
+        )}
 
         {canEdit && (
           <button

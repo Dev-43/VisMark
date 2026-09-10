@@ -134,4 +134,56 @@ router.delete('/:id', async (req, res) => {
   res.status(200).json({ message: 'Link deleted' });
 });
 
+// PATCH /api/links/:id (Update personal_description)
+router.patch('/:id', async (req, res) => {
+  const { id } = req.params;
+  const user_id = req.user.id;
+  const { personal_description } = req.body;
+
+  // Find the link and its folder_id
+  const { data: link, error: linkError } = await getSupabase()
+    .from('links')
+    .select('id, folder_id')
+    .eq('id', id)
+    .single();
+
+  if (linkError || !link) {
+    return res.status(404).json({ error: 'Link not found' });
+  }
+
+  // Verify folder membership and check role (owner or editor)
+  const { data: membership, error: memberError } = await getSupabase()
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', link.folder_id)
+    .eq('user_id', user_id)
+    .single();
+
+  if (memberError || !membership) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  if (membership.role !== 'owner' && membership.role !== 'editor') {
+    return res.status(403).json({ error: 'Only owners and editors can edit link descriptions' });
+  }
+
+  const newDesc = personal_description === '' ? null : (personal_description || null);
+
+  const { data: updated, error: updateError } = await getSupabase()
+    .from('links')
+    .update({ personal_description: newDesc })
+    .eq('id', id)
+    .select('*, link_tags (tag_id,tags ( id, name ) )')
+    .single();
+
+  if (updateError) {
+    return res.status(500).json({ error: updateError.message });
+  }
+
+  // Log activity
+  await logActivity(link.folder_id, user_id, 'description_edited', id);
+
+  res.status(200).json(updated);
+});
+
 export default router;

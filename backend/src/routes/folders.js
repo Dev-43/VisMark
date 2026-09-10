@@ -601,6 +601,7 @@ router.delete('/:id/members/:targetUserId', requireAuth, async (req, res) => {
         url: link.url,
         title: link.title,
         description: link.description,
+        personal_description: link.personal_description || null,
         screenshot_url: link.screenshot_url,
         favicon_url: link.favicon_url,
         snapshot_status: link.snapshot_status

@@ -80,7 +80,7 @@ publicRouter.get('/:slug', async (req, res) => {
   // Fetch all links in this folder
   const { data: links, error: linksError } = await getSupabase()
     .from('links')
-    .select('id, url, title, description, screenshot_url, favicon_url')
+    .select('id, url, title, description, personal_description, screenshot_url, favicon_url')
     .eq('folder_id', folder.id)
     .order('created_at', { ascending: false });
 
