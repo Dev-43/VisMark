@@ -49,6 +49,8 @@ export default function InviteModal({ isOpen, onClose, folderId, currentRole }: 
   const [memberActionId, setMemberActionId] = useState<string | null>(null);
   const [confirmingMember, setConfirmingMember] = useState<Member | null>(null);
   const [copyOwnLinks, setCopyOwnLinks] = useState(false);
+  const [transferringMember, setTransferringMember] = useState<Member | null>(null);
+  const [transferring, setTransferring] = useState(false);
 
   const isOwner = currentRole
     ? currentRole === 'owner'
@@ -114,6 +116,7 @@ export default function InviteModal({ isOpen, onClose, folderId, currentRole }: 
       setRole('editor');
       setConfirmingMember(null);
       setCopyOwnLinks(false);
+      setTransferringMember(null);
     }
   }, [isOpen, currentRole, fetchInvites, fetchMembers, fetchMyProfile]);
 
@@ -227,6 +230,34 @@ export default function InviteModal({ isOpen, onClose, folderId, currentRole }: 
       showToast(err instanceof Error ? err.message : 'Action failed', 'error');
     } finally {
       setMemberActionId(null);
+    }
+  };
+
+  const handleTransferOwnership = async (member: Member) => {
+    if (transferring) return;
+    setTransferring(true);
+    try {
+      const res = await apiFetch(`/api/folders/${folderId}/transfer-ownership`, {
+        method: 'POST',
+        body: JSON.stringify({ newOwnerId: member.user_id }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Failed to transfer ownership');
+      }
+
+      showToast(`Ownership transferred to @${member.username}`, 'success');
+      setTransferringMember(null);
+      window.dispatchEvent(new CustomEvent('folders-updated'));
+      fetchMembers();
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Transfer failed', 'error');
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -470,7 +501,58 @@ export default function InviteModal({ isOpen, onClose, folderId, currentRole }: 
       <div className="invite-backdrop" onClick={onClose}>
         <div className="invite-modal-box" onClick={(e) => e.stopPropagation()}>
           
-          {confirmingMember ? (
+          {transferringMember ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 className="invite-modal-title">Transfer Ownership</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text)', margin: 0, fontFamily: 'var(--font-body)' }}>
+                Are you sure you want to transfer ownership of this folder to <strong>@{transferringMember.username}</strong>?
+              </p>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, fontFamily: 'var(--font-body)' }}>
+                You will become an editor and will no longer be able to manage members, toggle public sharing, or delete this folder.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setTransferringMember(null)}
+                  disabled={transferring}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--text)',
+                    fontSize: '13px',
+                    fontFamily: 'var(--font-body)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTransferOwnership(transferringMember)}
+                  disabled={transferring}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'var(--accent)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontFamily: 'var(--font-body)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {transferring && <Loader2 className="animate-spin" size={14} />}
+                  Transfer Ownership
+                </button>
+              </div>
+            </div>
+          ) : confirmingMember ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h3 className="invite-modal-title">
                 {confirmingMember.user_id === myProfile?.id ? 'Leave Folder' : 'Remove Member'}
@@ -703,13 +785,24 @@ export default function InviteModal({ isOpen, onClose, folderId, currentRole }: 
                               </button>
                             )}
                             {canRemove && (
-                              <button
-                                className="invite-cancel-btn"
-                                type="button"
-                                onClick={() => setConfirmingMember(member)}
-                              >
-                                Remove
-                              </button>
+                              <>
+                                <button
+                                  className="invite-cancel-btn"
+                                  type="button"
+                                  title="Transfer Ownership"
+                                  onClick={() => setTransferringMember(member)}
+                                  style={{ color: 'var(--accent)' }}
+                                >
+                                  Transfer
+                                </button>
+                                <button
+                                  className="invite-cancel-btn"
+                                  type="button"
+                                  onClick={() => setConfirmingMember(member)}
+                                >
+                                  Remove
+                                </button>
+                              </>
                             )}
                             {!canLeave && !canRemove && (
                               <span className="invite-item-role" style={{ textTransform: 'none' }}>

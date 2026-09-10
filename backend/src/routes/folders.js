@@ -605,4 +605,87 @@ router.delete('/:id/members/:targetUserId', requireAuth, async (req, res) => {
   res.json({ message: isLeaving ? 'Successfully left the folder' : 'Member removed successfully' })
 })
 
+// Transfer ownership of a folder (Owner only)
+router.post('/:id/transfer-ownership', requireAuth, async (req, res) => {
+  const supabase = getSupabase()
+  const { id } = req.params
+  const userId = req.user.id
+  const { newOwnerId } = req.body
+
+  if (!newOwnerId) {
+    return res.status(400).json({ error: 'newOwnerId is required' })
+  }
+
+  if (newOwnerId === userId) {
+    return res.status(400).json({ error: 'You are already the owner of this folder' })
+  }
+
+  // 1. Verify caller is currently the owner of the folder
+  const { data: callerMembership, error: callerError } = await supabase
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', id)
+    .eq('user_id', userId)
+    .single()
+
+  if (callerError || !callerMembership) {
+    return res.status(404).json({ error: 'Folder not found or access denied' })
+  }
+
+  if (callerMembership.role !== 'owner') {
+    return res.status(403).json({ error: 'Only the folder owner can transfer ownership' })
+  }
+
+  // 2. Verify new owner is an existing member of the folder
+  const { data: targetMembership, error: targetError } = await supabase
+    .from('folder_members')
+    .select('role')
+    .eq('folder_id', id)
+    .eq('user_id', newOwnerId)
+    .single()
+
+  if (targetError || !targetMembership) {
+    return res.status(404).json({ error: 'Target user is not a member of this folder' })
+  }
+
+  // 3. Demote caller to 'editor'
+  const { error: demoteError } = await supabase
+    .from('folder_members')
+    .update({ role: 'editor' })
+    .eq('folder_id', id)
+    .eq('user_id', userId)
+
+  if (demoteError) {
+    return res.status(500).json({ error: 'Failed to update former owner role: ' + demoteError.message })
+  }
+
+  // 4. Promote new owner to 'owner'
+  const { error: promoteError } = await supabase
+    .from('folder_members')
+    .update({ role: 'owner' })
+    .eq('folder_id', id)
+    .eq('user_id', newOwnerId)
+
+  if (promoteError) {
+    // Attempt rollback: restore caller as owner
+    await supabase.from('folder_members').update({ role: 'owner' }).eq('folder_id', id).eq('user_id', userId)
+    return res.status(500).json({ error: 'Failed to promote new owner: ' + promoteError.message })
+  }
+
+  // 5. Update folders.user_id to point to the new owner
+  const { error: folderUpdateError } = await supabase
+    .from('folders')
+    .update({ user_id: newOwnerId })
+    .eq('id', id)
+
+  if (folderUpdateError) {
+    console.error('Warning: failed to update folders.user_id:', folderUpdateError.message)
+  }
+
+  // 6. Log activity
+  await logActivity(id, userId, 'ownership_transferred', newOwnerId)
+
+  res.json({ message: 'Ownership transferred successfully', newOwnerId })
+})
+
 export default router
