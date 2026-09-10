@@ -35,12 +35,17 @@ router.post('/', requireAuth, snapshotRateLimiter, async (req, res) => {
   const userId = req.user.id;
   const { data: link, error: linkError } = await getSupabase()
     .from('links')
-    .select('folder_id')
+    .select('folder_id, url')
     .eq('id', linkId)
     .single();
 
   if (linkError || !link) {
     return res.status(404).json({ error: 'Link not found' });
+  }
+
+  // Verify that the requested URL matches the link's registered URL to prevent URL spoofing
+  if (link.url !== url) {
+    return res.status(400).json({ error: 'Provided URL does not match link record' });
   }
 
   const { data: membership, error: memberError } = await getSupabase()

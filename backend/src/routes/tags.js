@@ -176,7 +176,19 @@ router.get('/:tagId/links', async (req, res) => {
   const { tagId } = req.params;
 
   try {
-    // 1. Fetch user's folder memberships to get folder IDs and roles
+    // 1. Verify that the tag exists and belongs to the requesting user
+    const { data: tag, error: tagError } = await getSupabase()
+      .from('tags')
+      .select('id')
+      .eq('id', tagId)
+      .eq('user_id', userId)
+      .single();
+
+    if (tagError || !tag) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+
+    // 2. Fetch user's folder memberships to get folder IDs and roles
     const { data: memberships, error: memberError } = await getSupabase()
       .from('folder_members')
       .select('folder_id, role')
